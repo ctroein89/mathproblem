@@ -1,17 +1,11 @@
-import * as parser from '../src/parser'
+import * as parser from '../src/tree-parser'
 
 describe("silly function", () => {
-  test("unrecognized", () => {
-    let expression = ".()"
-    expect(() => {
-      parser.evaluateExpression(expression)
-    }).toThrow("Unrecognized character: '.' at 0 in '.()'")
+  test("test regex", () => {
+    expect(/\)/.test("\)")).toBe(true)
+    expect(/\)/.test(")")).toBe(true)
   })
 
-  test("multiplication", () => {
-    let expression = "7 * 8"
-    expect(parser.evaluateExpression(expression)).toBe(56)
-  })
   test("multiplication", () => {
     let expression = "7 * 8"
     expect(parser.evaluateExpression(expression)).toBe(56)
@@ -20,6 +14,16 @@ describe("silly function", () => {
   test("addition only", () => {
     let expression = "7 + 8"
     expect(parser.evaluateExpression(expression)).toBe(15)
+  })
+
+  test("doubleDigit", () => {
+    let expression = "11 + 22"
+    expect(parser.evaluateExpression(expression)).toBe(33)
+  })
+
+  test("addition only", () => {
+    let expression = "2 + 2 + 2"
+    expect(parser.evaluateExpression(expression)).toBe(6)
   })
 
   test("add to multiple", () => {
@@ -35,5 +39,12 @@ describe("silly function", () => {
   test("add then multiple", () => {
     let expression = "(2 * 7) + 8"
     expect(parser.evaluateExpression(expression)).toBe(22)
+  })
+})
+
+xdescribe("", () => {
+  test("add then multiple", () => {
+    let expression = "(2 + 7) * 8"
+    expect(parser.evaluateExpression(expression)).toBe(72)
   })
 })
