@@ -1,11 +1,242 @@
 import * as parser from '../src/tree-parser'
 
-describe("silly function", () => {
-  test("test regex", () => {
-    expect(/\)/.test("\)")).toBe(true)
-    expect(/\)/.test(")")).toBe(true)
+describe("lexer", () => {
+  test("number", () => {
+    let res: parser.ExprNode[] = parser.lexicalAnalysis("1")
+    expect(res).toMatchObject([{value: "1", type: parser.TokenType.Number}])
+  })
+  test("double digit number", () => {
+    let res: parser.ExprNode[] = parser.lexicalAnalysis("11")
+    expect(res).toMatchObject([{value: "11", type: parser.TokenType.Number}])
+  })
+  test("+", () => {
+    let res: parser.ExprNode[] = parser.lexicalAnalysis("+")
+    expect(res).toMatchObject([{value: "+", type: parser.TokenType.Operator}])
+  })
+  test("*", () => {
+    let res: parser.ExprNode[] = parser.lexicalAnalysis("*")
+    expect(res).toMatchObject([{value: "*", type: parser.TokenType.Operator}])
+  })
+  test("Create array", () => {
+    let res: parser.ExprNode[] = parser.lexicalAnalysis("1 + (2 * 3)")
+    expect(res).toMatchObject([
+      {value: "1", type: parser.TokenType.Number},
+      {value: "+", type: parser.TokenType.Operator},
+      {value: "(", type: parser.TokenType.Operator},
+      {value: "2", type: parser.TokenType.Number},
+      {value: "*", type: parser.TokenType.Operator},
+      {value: "3", type: parser.TokenType.Number},
+      {value: ")", type: parser.TokenType.Operator},
+    ])
+  })
+})
+
+describe("parser", ()  => {
+  test("Create array", () => {
+    let res: parser.ExprNode[] = parser.lexicalAnalysis("1 + 2")
+    expect(res).toMatchObject([
+      {value: "1", type: parser.TokenType.Number},
+      {value: "+", type: parser.TokenType.Operator},
+      {value: "2", type: parser.TokenType.Number},
+    ])
+
+    let astParser = new parser.Parser()
+    let ast = astParser.expression(res)
+    expect(ast).toMatchObject({
+      value: "+",
+      type: parser.TokenType.Operator,
+      left: {
+        value: "1",
+        type: parser.TokenType.Number,
+      },
+      right: {
+        value: "2",
+        type: parser.TokenType.Number,
+      },
+    })
   })
 
+  test("Create array", () => {
+    let res: parser.ExprNode[] = parser.lexicalAnalysis("1 + 2 + 3")
+    expect(res).toMatchObject([
+      {value: "1", type: parser.TokenType.Number},
+      {value: "+", type: parser.TokenType.Operator},
+      {value: "2", type: parser.TokenType.Number},
+      {value: "+", type: parser.TokenType.Operator},
+      {value: "3", type: parser.TokenType.Number},
+    ])
+
+    let astParser = new parser.Parser()
+    let ast = astParser.expression(res)
+    expect(ast).toMatchObject({
+      value: "+",
+      type: parser.TokenType.Operator,
+      left: {
+        value: "1",
+        type: parser.TokenType.Number,
+      },
+      right: {
+        value: "+",
+        type: parser.TokenType.Operator,
+        left: {
+          value: "2",
+          type: parser.TokenType.Number,
+        },
+        right: {
+          value: "3",
+          type: parser.TokenType.Number,
+        },
+      },
+    })
+  })
+
+  test("Create array", () => {
+    let res: parser.ExprNode[] = parser.lexicalAnalysis("1 * 2")
+    expect(res).toMatchObject([
+      {value: "1", type: parser.TokenType.Number},
+      {value: "*", type: parser.TokenType.Operator},
+      {value: "2", type: parser.TokenType.Number},
+    ])
+
+    let astParser = new parser.Parser()
+    let ast = astParser.expression(res)
+    expect(ast).toMatchObject({
+      value: "*",
+      type: parser.TokenType.Operator,
+      left: {
+        value: "1",
+        type: parser.TokenType.Number,
+      },
+      right: {
+        value: "2",
+        type: parser.TokenType.Number,
+      },
+    })
+  })
+
+  test("Create array", () => {
+    let res: parser.ExprNode[] = parser.lexicalAnalysis("1 + 2 * 3")
+    expect(res).toMatchObject([
+      {value: "1", type: parser.TokenType.Number},
+      {value: "+", type: parser.TokenType.Operator},
+      {value: "2", type: parser.TokenType.Number},
+      {value: "*", type: parser.TokenType.Operator},
+      {value: "3", type: parser.TokenType.Number},
+    ])
+
+    let astParser = new parser.Parser()
+    let ast = astParser.expression(res)
+    expect(ast).toMatchObject({
+      value: "+",
+      type: parser.TokenType.Operator,
+      left: {
+        value: "1",
+        type: parser.TokenType.Number,
+      },
+      right: {
+        value: "*",
+        type: parser.TokenType.Operator,
+        left: {
+          value: "2",
+          type: parser.TokenType.Number,
+        },
+        right: {
+          value: "3",
+          type: parser.TokenType.Number,
+        },
+      },
+    })
+  })
+
+  test("Create array", () => {
+    let res: parser.ExprNode[] = parser.lexicalAnalysis("(1 + 2) * 3")
+    expect(res).toMatchObject([
+      {value: "(", type: parser.TokenType.Operator},
+      {value: "1", type: parser.TokenType.Number},
+      {value: "+", type: parser.TokenType.Operator},
+      {value: "2", type: parser.TokenType.Number},
+      {value: ")", type: parser.TokenType.Operator},
+      {value: "*", type: parser.TokenType.Operator},
+      {value: "3", type: parser.TokenType.Number},
+    ])
+
+    let astParser = new parser.Parser()
+    astParser.shouldLog = true;
+    let ast = astParser.expression(res)
+    console.log("lexer results", res)
+    console.log("final ast", JSON.stringify(ast, null, 2))
+    expect(ast).toMatchObject({
+      value: "*",
+      type: parser.TokenType.Operator,
+      left: {
+        value: "(",
+        type: parser.TokenType.Operator,
+        left: {
+          value: "+",
+          type: parser.TokenType.Operator,
+          left: {value: "1", type: parser.TokenType.Number},
+          right: {value: "2", type: parser.TokenType.Number},
+        },
+        /*
+        right: {
+          value: ")",
+          type: parser.TokenType.Operator
+        },
+        */
+      },
+      right: {
+        value: "3",
+        type: parser.TokenType.Number,
+      },
+    })
+  })
+
+  test("Create array", () => {
+    let res: parser.ExprNode[] = parser.lexicalAnalysis("(1 + (2 + 3)) * 4")
+    let astParser = new parser.Parser()
+    astParser.shouldLog = true;
+    let ast = astParser.expression(res)
+    console.log("lexer results", res)
+    console.log("final ast", JSON.stringify(ast, null, 2))
+    expect(ast).toMatchObject({
+      value: "*",
+      type: parser.TokenType.Operator,
+      left: {
+        value: "(",
+        type: parser.TokenType.Operator,
+        left: {
+          value: "+",
+          type: parser.TokenType.Operator,
+          left: {value: "1", type: parser.TokenType.Number},
+          right: {
+            value: "(",
+            type: parser.TokenType.Operator,
+            left: {
+              value: "+",
+              type: parser.TokenType.Operator,
+              left: {value: "2", type: parser.TokenType.Number},
+              right: {
+                value: "3", type: parser.TokenType.Number
+              },
+            },
+            right: {
+              value: ")", type: parser.TokenType.Operator
+            },
+          },
+        },
+        right: {
+          value: ")", type: parser.TokenType.Operator
+        },
+      },
+      right: {
+        value: "4",
+        type: parser.TokenType.Number,
+      },
+    })
+  })
+})
+
+describe("silly function", () => {
   test("multiplication", () => {
     let expression = "7 * 8"
     expect(parser.evaluateExpression(expression)).toBe(56)

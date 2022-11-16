@@ -14,129 +14,180 @@ function getFullValue(expression: string) {
   return {val: parseInt(accumulated) || -1, i: expression.length}
 }
 
-
-interface ExprTree {
-  left: number | ExprTree | undefined;
-  right: number | ExprTree | undefined;
-  operator: string | undefined;
-  i: number;
+export enum TokenType {
+  Operator = "OP",
+  Number = "NUM",
 }
 
-export function parseExpression(expression: string, level?: undefined | number): ExprTree {
-  if (!level) level = 1; // logged for debugging
-  let tree: ExprTree = {
-    left: undefined,
-    operator: undefined,
-    right: undefined,
-    i: 0,
+export interface ExprNode {
+  value: string;
+  type: TokenType;
+  left?: ExprNode | undefined;
+  right?: ExprNode | undefined;
+}
+
+/*
+ * The lexer splits the string/file into tokens, which can then be parsed based
+ * the data
+ */
+export function lexicalAnalysis(expression: string): ExprNode[] {
+  let res = []
+  let token: ExprNode
+  let incompleteNumber: string = ""
+
+  function createNumber() {
+    token = {
+      value: incompleteNumber,
+      type: TokenType.Number,
+    }
+    res.push(token)
+    incompleteNumber = ""
   }
 
-  let i = 0;
-  while(i<expression.length) {
-    tree.i = i;
-    if (!tree.left) {
-      if (startSubExpression.test(expression[i])) {
-        let subExpr = expression.substring(
-          i + 1,
-          expression.search(/\)/) || expression.length
-        )
-        tree.left = parseExpression(subExpr, level + 1)
-        i = i + tree.left.i + 1;
-      } else if (digitCheck.test(expression[i])) {
-        let subExpr = expression.substring(i,expression.length)
-        let fullValue = getFullValue(subExpr)
-        tree.left = fullValue.val
-        i = i + fullValue.i
+  for (let c of expression) {
+    if (incompleteNumber && !digitCheck.test(c)) {
+      createNumber()
+    }
+    if (["*", "+", "(", ")"].includes(c)) {
+      token = {
+        value: c,
+        type: TokenType.Operator,
       }
-
-    } else if (permittedOperators.test(expression[i]) && !tree.operator) {
-      tree.operator = expression[i];
-
-    } else if (!tree.right) {
-      if (startSubExpression.test(expression[i])) {
-        let subExpr = expression.substring(
-          i + 1,
-          expression.search(/\)/) || expression.length
-        )
-        tree.right = parseExpression(subExpr, level + 1)
-        i = i + tree.right.i + 1;
-      } else if (digitCheck.test(expression[i])) {
-        let subExpr = expression.substring(i,expression.length)
-        let fullValue = getFullValue(subExpr)
-        tree.right = fullValue.val
-        i = i + fullValue.i
-      }
-
-    } else if (endSubExpression.test(expression[i])) {
-      break;
-
-    } else if (tree.left && tree.right && tree.operator) {
-      let leftTree = tree
-      tree = {
-        left: leftTree,
-        operator: undefined,
-        right: undefined,
-        i: i,
-      }
-      if (permittedOperators.test(expression[i])) {
-        tree.operator = expression[i];
-      }
-
-    } else if (/ /.test(expression[i])) {
-      // do nothing
+      if (!!token) res.push(token)
+    } else if (digitCheck.test(c)) {
+      incompleteNumber += c
+    } else if (c === " ") {
 
     } else {
-      throw new Error(`Unrecognized character: '${expression[i]}' at ${i} in '${expression}'`)
+      throw new Error(`Invalid character: '${c}'`)
     }
+  }
+  if (incompleteNumber) {
+    createNumber()
+  }
 
-    i++
+  return res
+}
+
+/*
+ * Parses based on the lexer results
+ */
+export class Parser {
+  tokens: ExprNode[] = [];
+  i: number = 0;
+  eof: boolean = false;
+  shouldLog: boolean = false;
+
+  next(): void {
+    this.i = this.i + 1
+    if (this.i >= this.tokens.length) {
+      this.eof = true;
+      return
+    }
   }
-  if (!tree.operator) {
-    throw new Error("invalid tree: no operator: " + JSON.stringify(tree))
+
+  back(): void {
+    this.i = this.i - 1
+    if (this.i < 0) {
+      this.i = 0
+      return
+    }
   }
+
+  parseNumber(): ExprNode | undefined {
+    if (!this.eof && this.tokens[this.i]?.type === TokenType.Number) {
+      if (this.shouldLog) console.log("parseNumber", this.i)
+      return this.tokens[this.i]
+    }
+  }
+
+  parentheses(): ExprNode | undefined {
+    let token = this.tokens[this.i]
+    if (!this.eof && token?.value == '(') {
+      this.next()
+      token.left = this.add()
+      if (!this.eof && this.tokens[this.i]?.value == ')') {
+        token.right = this.tokens[this.i]
+      } else {
+        this.back()
+      }
+      return token
+    }
+    return this.parseNumber()
+  }
+
+  multiply(): ExprNode | undefined {
+    let sub_expr = this.parentheses()
+    this.next()
+    let token = this.tokens[this.i]
+    // we could handle division here for simplicity, it's just multiplication
+    // In a classic example of this, 'x / y * z' is treated as 'x * (1/y) * z'
+    // but it's worth clarifying the rules to ensure that that is correct, ie
+    // it's equally valid to read it as 'x / (y * z)'
+    if (!this.eof && token?.value == "*") {
+      token.left = sub_expr
+      this.next()
+      token.right = this.multiply()
+      return token
+    } else {
+      this.back()
+    }
+    return sub_expr
+  }
+
+  add(): ExprNode | undefined {
+    let sub_expr = this.multiply()
+    this.next()
+    let token = this.tokens[this.i]
+    // we could handle subtraction here for simplicity, it's just addition
+    // I've seen examples where unary operator is handled seperately
+    // and it may be worth reworking 'x - y' to 'x + -y'
+    if (!this.eof && token?.value == "+") {
+      token.left = sub_expr
+      this.next()
+      token.right = this.add()
+      return token
+    }
+    return sub_expr
+  }
+
+  // Main input function
+  expression(tokens: Array<ExprNode>): ExprNode | undefined {
+    // Note how the rules are parsed 
+    this.tokens = tokens
+    return this.add()
+  }
+}
+
+
+export function parseExpression(expression: string, level?: undefined | number): ExprNode {
+  if (!level) level = 1; // logged for debugging
+  let tree = lexicalAnalysis(expression)[0]
 
   return tree;
 }
 
-export function evaluateExpressionTree(expressionTree: ExprTree): number | undefined {
-  let left: number | undefined;
-  let right: number | undefined;
-  const operator = expressionTree.operator;
-
-  if (typeof expressionTree.left === "object") {
-    left = evaluateExpressionTree(expressionTree.left)
-  } else if (typeof expressionTree.left === "number") {
-    left = expressionTree.left;
-  } else if (typeof expressionTree.left === "string") {
-    left = parseInt(expressionTree.left);
+export function evaluateExpressionTree(expressionTree: ExprNode): number {
+  if (expressionTree.type == TokenType.Number) {
+    return parseInt(expressionTree.value) ? parseInt(expressionTree.value) : 0;
   }
-  if (typeof left === "undefined") {
-    throw new Error("left is undefined");
+  if (expressionTree.type == TokenType.Operator) {
+    if (expressionTree.value == "*") {
+      return evaluateExpressionTree(expressionTree.left!) * evaluateExpressionTree(expressionTree.right!)
+    } else if (expressionTree.value == "+") {
+      return evaluateExpressionTree(expressionTree.left!) + evaluateExpressionTree(expressionTree.right!)
+    } else if (expressionTree.value == "(") {
+      // don't need to handle ")" case, because it's always the right hand side of "("
+      return evaluateExpressionTree(expressionTree.left!)
+    }
   }
-
-  if (typeof expressionTree.right === "object") {
-    right = evaluateExpressionTree(expressionTree.right)
-  } else if (typeof expressionTree.right === "number") {
-    right = expressionTree.right;
-  } else if (typeof expressionTree.right === "string") {
-    right = parseInt(expressionTree.right);
-  }
-  if (typeof right === "undefined") {
-    throw new Error("right is undefined");
-  }
-
-  let ret;
-  if (operator == "*") {
-    ret = left * right;
-  } else if (operator == "+") {
-    ret = left + right;
-  } else {
-    throw new Error(`operator '${operator}' is invalid`);
-  }
-  return ret;
+  throw new Error(`Unhandled expressionTree type of: '${expressionTree.type}'`)
 }
 
 export function evaluateExpression(expression: string): number | undefined {
-  const expressionTree = parseExpression(expression);
-  return evaluateExpressionTree(expressionTree);
+  let res: ExprNode[] = lexicalAnalysis(expression)
+
+  let astParser = new Parser()
+  let ast = astParser.expression(res)
+  return evaluateExpressionTree(ast!);
 }
