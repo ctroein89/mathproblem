@@ -8,9 +8,25 @@ enum Keyword {
   AND = "&&",
   OR = "||",
   WHERE = "where",
+  IN = "in",
   PARENTHESES_OPEN = "(",
   PARENTHESES_CLOSE = ")",
+  EQUALTO = "==",
+  GREAT_THAN_OR_EQUALTO = ">=",
+  LESS_THAN_OR_EQUALTO = "<=",
+  GREAT_THAN = ">",
+  LESS_THAN = "<",
+  NOT_EQUAL_TO = "!=",
 }
+
+const Comparitors = [
+  Keyword.EQUALTO,
+  Keyword.GREAT_THAN_OR_EQUALTO,
+  Keyword.LESS_THAN_OR_EQUALTO,
+  Keyword.GREAT_THAN,
+  Keyword.LESS_THAN,
+  Keyword.NOT_EQUAL_TO as string,
+]
 
 export enum TokenType {
   Operator = "OP",
@@ -63,33 +79,30 @@ export class Parser {
    */
   lexicalAnalysis(expression: string): Token[] {
     let tokens: Token[] = []
-    let incompleteToken: string = ""
+    let increateToken: string = ""
     let typeInProgress: TokenType | undefined
 
-    function completeToken() {
+    function createToken() {
       let token: Token = {
-        value: incompleteToken,
+        value: increateToken,
         type: typeInProgress!,
       }
       tokens.push(token)
-      incompleteToken = ""
+      increateToken = ""
       typeInProgress = undefined
     }
 
     function checkCompleteToken(c: string) {
-      if (incompleteToken) {
+      if (increateToken) {
         if (typeInProgress == TokenType.Number && !numberRegex.test(c)) {
-          completeToken()
-        }
-        if (typeInProgress == TokenType.Word && !wordRegex.test(c)) {
-          completeToken()
-        }
-        if (typeInProgress == TokenType.Operator && !permittedOperators.test(c)) {
-          completeToken()
-        }
-        // special tokens that complete instantly
-        if (['(', ')'].includes(incompleteToken)) {
-          completeToken()
+          createToken()
+        } else if (typeInProgress == TokenType.Word && !wordRegex.test(c)) {
+          createToken()
+        } else if (typeInProgress == TokenType.Operator && !permittedOperators.test(c)) {
+          createToken()
+        } else if (['(', ')'].includes(increateToken)) {
+          // special tokens that complete instantly
+          createToken()
         }
       }
     }
@@ -112,18 +125,32 @@ export class Parser {
         throw new Error(`Invalid character: '${c}'`)
       }
       if (validChar) {
-        incompleteToken += c
+        increateToken += c
       }
     }
-    completeToken()
+    createToken()
+
+    this.errorCheckLexer(tokens)
 
     return tokens
   }
 
+  errorCheckLexer(tokens: Token[]) {
+    let lastToken: Token | undefined
 
-  parseNumber(): AstNode | undefined {
-    if (!this.eof && this.tokens[this.i]?.type === TokenType.Number) {
-      if (this.shouldLog) console.log("parseNumber", this.i)
+    for (let i = 0; i < tokens.length; i++) {
+      let token: Token = tokens[i]
+      if (lastToken && (
+        lastToken?.type != TokenType.Operator && token.type != TokenType.Operator
+      )) {
+        throw new Error(`${lastToken.value} ${token.value} forms an illegal combination`)
+      }
+      lastToken = token
+    }
+  }
+
+  parseLiteral(): AstNode | undefined {
+    if (!this.eof && [TokenType.Number, TokenType.Word].includes(this.tokens[this.i]?.type)) {
       let node: AstNode = {
         token: this.tokens[this.i]
       }
@@ -133,12 +160,13 @@ export class Parser {
 
   parentheses(): AstNode | undefined {
     let token = this.tokens[this.i]
+    let node: AstNode
     if (!this.eof && token?.value == '(') {
       this.next()
-      let node: AstNode = {
+      node = {
         token: token
       }
-      node.left = this.add()
+      node.left = this.and()
       if (!this.eof && this.tokens[this.i]?.value == ')') {
         node.right = {
           token: this.tokens[this.i]
@@ -148,10 +176,10 @@ export class Parser {
       }
       return node
     }
-    return this.parseNumber()
+    return this.parseLiteral()
   }
 
-  multiply(): AstNode | undefined {
+  comparitor(): AstNode | undefined {
     let sub_expr = this.parentheses()
     this.next()
     let token = this.tokens[this.i]
@@ -159,13 +187,20 @@ export class Parser {
     // In a classic example of this, 'x / y * z' is treated as 'x * (1/y) * z'
     // but it's worth clarifying the rules to ensure that that is correct, ie
     // it's equally valid to read it as 'x / (y * z)'
-    if (!this.eof && token?.value == "=") {
+    if (!this.eof && [
+      Keyword.EQUALTO as string,
+      Keyword.GREAT_THAN_OR_EQUALTO as string,
+      Keyword.LESS_THAN_OR_EQUALTO as string,
+      Keyword.GREAT_THAN as string,
+      Keyword.LESS_THAN as string,
+      Keyword.NOT_EQUAL_TO as string,
+    ].includes(token?.value as string)) {
       let node: AstNode = {
-        token: token
+        token: token as Token
       }
       node.left = sub_expr
       this.next()
-      node.right = this.multiply()
+      node.right = this.comparitor()
       return node
     } else {
       this.back()
@@ -173,20 +208,39 @@ export class Parser {
     return sub_expr
   }
 
-  add(): AstNode | undefined {
-    let sub_expr = this.multiply()
+  or(): AstNode | undefined {
+    let sub_expr = this.comparitor()
     this.next()
     let token = this.tokens[this.i]
     // we could handle subtraction here for simplicity, it's just addition
     // I've seen examples where unary operator is handled seperately
     // and it may be worth reworking 'x - y' to 'x + -y'
-    if (!this.eof && token?.value == "&") {
+    if (!this.eof && token?.value as string == Keyword.OR) {
       let node: AstNode = {
         token: token
       }
       node.left = sub_expr
       this.next()
-      node.right = this.add()
+      node.right = this.and()
+      return node
+    }
+    return sub_expr
+  }
+
+  and(): AstNode | undefined {
+    let sub_expr = this.comparitor()
+    this.next()
+    let token = this.tokens[this.i]
+    // we could handle subtraction here for simplicity, it's just addition
+    // I've seen examples where unary operator is handled seperately
+    // and it may be worth reworking 'x - y' to 'x + -y'
+    if (!this.eof && [Keyword.AND as string, Keyword.OR as string].includes(token.value)) {
+      let node: AstNode = {
+        token: token
+      }
+      node.left = sub_expr
+      this.next()
+      node.right = this.and()
       return node
     }
     return sub_expr
@@ -196,32 +250,92 @@ export class Parser {
   expression(tokens: Array<Token>): AstNode | undefined {
     // Note how the rules are parsed 
     this.tokens = tokens
-    return this.add()
+    return this.and()
   }
 }
 
-
-export function evaluateAst(expressionTree: AstNode): number {
-  if (expressionTree.token.type == TokenType.Number) {
-    return parseInt(expressionTree.token.value) ? parseInt(expressionTree.token.value) : 0;
-  }
-  if (expressionTree.token.type == TokenType.Operator) {
-    if (expressionTree.token.value == "=") {
-      return evaluateAst(expressionTree.left!) * evaluateAst(expressionTree.right!)
-    } else if (expressionTree.token.value == "&") {
-      return evaluateAst(expressionTree.left!) + evaluateAst(expressionTree.right!)
-    } else if (expressionTree.token.value == "(") {
-      // don't need to handle ")" case, because it's always the right hand side of "("
-      return evaluateAst(expressionTree.left!)
+export class Evaluater {
+  compareLeaves(ast: AstNode, facts: any): boolean {
+    if (ast.token.type != TokenType.Operator) {
+      return false
     }
+
+    let value: string | number
+    let leftHandSide: string | undefined = ast.left?.token?.value
+    if (leftHandSide && typeof leftHandSide === "string" && typeof facts === "object") {
+      value = facts[leftHandSide]
+    } else {
+      return false
+    }
+
+    let rightHandSide: string | number | undefined = ast.right?.token?.value
+    if (!rightHandSide) {
+      return false
+    }
+    switch (ast.token.value as Keyword) {
+      case Keyword.EQUALTO:
+        return value == rightHandSide
+        break;
+      case Keyword.GREAT_THAN_OR_EQUALTO:
+        return value >= rightHandSide
+        break;
+      case Keyword.LESS_THAN_OR_EQUALTO:
+        return value <= rightHandSide
+        break;
+      case Keyword.GREAT_THAN:
+        return value > rightHandSide
+        break;
+      case Keyword.LESS_THAN:
+        return value < rightHandSide
+        break;
+      case Keyword.NOT_EQUAL_TO:
+        return value != rightHandSide
+        break;
+    }
+
+    return false
   }
-  throw new Error(`Unhandled expressionTree type of: '${expressionTree.token.type}'`)
-}
 
-export function evaluate(expression: string): number | undefined {
-  let astParser = new Parser()
-  let res: Token[] = astParser.lexicalAnalysis(expression)
+  evaluateBoolean(ast: AstNode, facts: Object): boolean {
+    const token = ast.token
+    if (token.value === Keyword.AND) {
+      return this.evaluateAst(ast.left!, facts) &&
+        this.evaluateAst(ast.right!, facts)
+    }
+    if (token.value === Keyword.OR) {
+      return this.evaluateAst(ast.left!, facts) ||
+        this.evaluateAst(ast.right!, facts)
+    }
+    throw new Error(`Unhandled boolean operator: '${token.value}'`)
+  }
 
-  let ast = astParser.expression(res)
-  return evaluateAst(ast!);
+  evaluateAst(ast: AstNode, facts: Object): boolean {
+    let result: boolean | undefined
+    const token = ast.token
+    if (token.type == TokenType.Operator) {
+      if ([
+        Keyword.AND as string,
+        Keyword.OR as string,
+      ].includes(token.value)) {
+        return this.evaluateBoolean(ast, facts)
+      } else if (Comparitors.includes(token.value as Keyword)) {
+        // comparisons
+        return  this.compareLeaves(ast, facts)
+      } else if (["(", ")"].includes(token.value)) {
+        return this.evaluateAst(ast.left!, facts)
+      } else {
+        throw new Error(`Unhandled operator: '${token.value}'. This is a problem is the expression evaluation.`)
+      }
+    }
+
+    throw new Error(`Unhandled ast type of: '${ast.token.type}'`)
+  }
+
+  evaluate(expression: string, facts: Object): boolean {
+    let astParser = new Parser()
+    let res: Token[] = astParser.lexicalAnalysis(expression)
+
+    let ast = astParser.expression(res)
+    return this.evaluateAst(ast!, facts);
+  }
 }

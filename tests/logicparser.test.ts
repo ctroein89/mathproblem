@@ -1,6 +1,6 @@
 import * as logicParser from '../src/logic.parser'
 
-describe("logical lexer", () => {
+describe("Lexing", () => {
   let parser: logicParser.Parser
 
   beforeEach(() => {
@@ -11,267 +11,336 @@ describe("logical lexer", () => {
     let res: logicParser.Token[] = parser.lexicalAnalysis("1")
     expect(res).toMatchObject([{value: "1", type: logicParser.TokenType.Number}])
   })
+
   test("double digit number", () => {
     let res: logicParser.Token[] = parser.lexicalAnalysis("11")
     expect(res).toMatchObject([{value: "11", type: logicParser.TokenType.Number}])
   })
+
   test("1.2", () => {
     let res: logicParser.Token[] = parser.lexicalAnalysis("1.2")
     expect(res).toMatchObject([{value: "1.2", type: logicParser.TokenType.Number}])
   })
+
   test("&", () => {
     let res: logicParser.Token[] = parser.lexicalAnalysis("&")
     expect(res).toMatchObject([{value: "&", type: logicParser.TokenType.Operator}])
   })
+
+  test("&&", () => {
+    let res: logicParser.Token[] = parser.lexicalAnalysis("&&")
+    expect(res).toMatchObject([{value: "&&", type: logicParser.TokenType.Operator}])
+  })
+
+  test("||", () => {
+    let res: logicParser.Token[] = parser.lexicalAnalysis("||")
+    expect(res).toMatchObject([{value: "||", type: logicParser.TokenType.Operator}])
+  })
+
+  test("<<", () => {
+    let res: logicParser.Token[] = parser.lexicalAnalysis("<<")
+    expect(res).toMatchObject([{value: "<<", type: logicParser.TokenType.Operator}])
+  })
+
   test("=", () => {
     let res: logicParser.Token[] = parser.lexicalAnalysis("=")
     expect(res).toMatchObject([{value: "=", type: logicParser.TokenType.Operator}])
   })
-  test("Create array", () => {
-    let res: logicParser.Token[] = parser.lexicalAnalysis("1 & (2 = 3)")
+
+  test("a == 1 && (b < 3)", () => {
+    let res: logicParser.Token[] = parser.lexicalAnalysis("a == 1 && (b < 3)")
     expect(res).toMatchObject([
+      {value: "a", type: logicParser.TokenType.Word},
+      {value: "==", type: logicParser.TokenType.Operator},
       {value: "1", type: logicParser.TokenType.Number},
-      {value: "&", type: logicParser.TokenType.Operator},
+      {value: "&&", type: logicParser.TokenType.Operator},
       {value: "(", type: logicParser.TokenType.Operator},
-      {value: "2", type: logicParser.TokenType.Number},
-      {value: "=", type: logicParser.TokenType.Operator},
+      {value: "b", type: logicParser.TokenType.Word},
+      {value: "<", type: logicParser.TokenType.Operator},
       {value: "3", type: logicParser.TokenType.Number},
       {value: ")", type: logicParser.TokenType.Operator},
     ])
   })
 })
 
-describe("logical parser", ()  => {
+describe("AST parsing", ()  => {
   let parser: logicParser.Parser
 
   beforeEach(() => {
     parser = new logicParser.Parser()
   })
 
-  test("1 & 2", () => {
-    let res: logicParser.Token[] = parser.lexicalAnalysis("1 & 2")
+  test("a == 1", () => {
+    let res: logicParser.Token[] = parser.lexicalAnalysis("a == 1")
     expect(res).toMatchObject([
+      {value: "a", type: logicParser.TokenType.Word},
+      {value: "==", type: logicParser.TokenType.Operator},
       {value: "1", type: logicParser.TokenType.Number},
-      {value: "&", type: logicParser.TokenType.Operator},
-      {value: "2", type: logicParser.TokenType.Number},
     ])
 
     let ast = parser.expression(res)
     expect(ast).toMatchObject({
-      token: {value: "&", type: logicParser.TokenType.Operator},
+      token: {value: "==", type: logicParser.TokenType.Operator},
       left: {
-        token: {value: "1", type: logicParser.TokenType.Number},
+        token: {value: "a", type: logicParser.TokenType.Word},
       },
       right: {
-        token: {value: "2", type: logicParser.TokenType.Number},
+        token: {value: "1", type: logicParser.TokenType.Number},
       },
     })
   })
 
-  test("1 & 2 & 3", () => {
-    let res: logicParser.Token[] = parser.lexicalAnalysis("1 & 2 & 3")
+  test("a == 1 && b > 2", () => {
+    let res: logicParser.Token[] = parser.lexicalAnalysis("a == 1 && b > 2")
     expect(res).toMatchObject([
+      {value: "a", type: logicParser.TokenType.Word},
+      {value: "==", type: logicParser.TokenType.Operator},
       {value: "1", type: logicParser.TokenType.Number},
-      {value: "&", type: logicParser.TokenType.Operator},
+      {value: "&&", type: logicParser.TokenType.Operator},
+      {value: "b", type: logicParser.TokenType.Word},
+      {value: ">", type: logicParser.TokenType.Operator},
       {value: "2", type: logicParser.TokenType.Number},
-      {value: "&", type: logicParser.TokenType.Operator},
-      {value: "3", type: logicParser.TokenType.Number},
     ])
 
     let ast = parser.expression(res)
     expect(ast).toMatchObject({
-      token: {value: "&", type: logicParser.TokenType.Operator},
+      token: {value: "&&", type: logicParser.TokenType.Operator},
       left: {
-        token: {value: "1", type: logicParser.TokenType.Number},
-      },
-      right: {
-        token: {value: "&", type: logicParser.TokenType.Operator},
+        token: {value: "==", type: logicParser.TokenType.Operator},
         left: {
-          token: {value: "2", type: logicParser.TokenType.Number},
+          token: {value: "a", type: logicParser.TokenType.Word},
         },
         right: {
-          token: {value: "3", type: logicParser.TokenType.Number},
+          token: {value: "1", type: logicParser.TokenType.Number},
         },
       },
-    })
-  })
-
-  test("1 = 2", () => {
-    let res: logicParser.Token[] = parser.lexicalAnalysis("1 = 2")
-    expect(res).toMatchObject([
-      {value: "1", type: logicParser.TokenType.Number},
-      {value: "=", type: logicParser.TokenType.Operator},
-      {value: "2", type: logicParser.TokenType.Number},
-    ])
-
-    let ast = parser.expression(res)
-    expect(ast).toMatchObject({
-      token: {value: "=", type: logicParser.TokenType.Operator},
-      left: {
-        token: {value: "1", type: logicParser.TokenType.Number},
-      },
       right: {
-        token: {value: "2", type: logicParser.TokenType.Number},
-      },
-    })
-  })
-
-  test("1 & 2 = 3", () => {
-    let res: logicParser.Token[] = parser.lexicalAnalysis("1 & 2 = 3")
-    expect(res).toMatchObject([
-      {value: "1", type: logicParser.TokenType.Number},
-      {value: "&", type: logicParser.TokenType.Operator},
-      {value: "2", type: logicParser.TokenType.Number},
-      {value: "=", type: logicParser.TokenType.Operator},
-      {value: "3", type: logicParser.TokenType.Number},
-    ])
-
-    let ast = parser.expression(res)
-    expect(ast).toMatchObject({
-      token: {value: "&", type: logicParser.TokenType.Operator},
-      left: {
-        token: {value: "1", type: logicParser.TokenType.Number},
-      },
-      right: {
-        token: {value: "=", type: logicParser.TokenType.Operator},
+        token: {value: ">", type: logicParser.TokenType.Operator},
         left: {
-          token: {value: "2", type: logicParser.TokenType.Number},
+          token: {value: "b", type: logicParser.TokenType.Word},
         },
         right: {
-          token: {value: "3", type: logicParser.TokenType.Number},
+          token: {value: "2", type: logicParser.TokenType.Number},
         },
       },
     })
   })
 
-  test("(1 & 2) = 3", () => {
-    let res: logicParser.Token[] = parser.lexicalAnalysis("(1 & 2) = 3")
+  test("a == 1 || b > 2", () => {
+    let res: logicParser.Token[] = parser.lexicalAnalysis("a == 1 || b > 2")
+    expect(res).toMatchObject([
+      {value: "a", type: logicParser.TokenType.Word},
+      {value: "==", type: logicParser.TokenType.Operator},
+      {value: "1", type: logicParser.TokenType.Number},
+      {value: "||", type: logicParser.TokenType.Operator},
+      {value: "b", type: logicParser.TokenType.Word},
+      {value: ">", type: logicParser.TokenType.Operator},
+      {value: "2", type: logicParser.TokenType.Number},
+    ])
+
+    let ast = parser.expression(res)
+    expect(ast).toMatchObject({
+      token: {value: "||", type: logicParser.TokenType.Operator},
+      left: {
+        token: {value: "==", type: logicParser.TokenType.Operator},
+        left: {
+          token: {value: "a", type: logicParser.TokenType.Word},
+        },
+        right: {
+          token: {value: "1", type: logicParser.TokenType.Number},
+        },
+      },
+      right: {
+        token: {value: ">", type: logicParser.TokenType.Operator},
+        left: {
+          token: {value: "b", type: logicParser.TokenType.Word},
+        },
+        right: {
+          token: {value: "2", type: logicParser.TokenType.Number},
+        },
+      },
+    })
+  })
+
+  test("(a == 1) || b > 2", () => {
+    let res: logicParser.Token[] = parser.lexicalAnalysis("(a == 1) || b > 2")
     expect(res).toMatchObject([
       {value: "(", type: logicParser.TokenType.Operator},
+      {value: "a", type: logicParser.TokenType.Word},
+      {value: "==", type: logicParser.TokenType.Operator},
       {value: "1", type: logicParser.TokenType.Number},
-      {value: "&", type: logicParser.TokenType.Operator},
-      {value: "2", type: logicParser.TokenType.Number},
       {value: ")", type: logicParser.TokenType.Operator},
-      {value: "=", type: logicParser.TokenType.Operator},
-      {value: "3", type: logicParser.TokenType.Number},
+      {value: "||", type: logicParser.TokenType.Operator},
+      {value: "b", type: logicParser.TokenType.Word},
+      {value: ">", type: logicParser.TokenType.Operator},
+      {value: "2", type: logicParser.TokenType.Number},
     ])
 
-    parser.shouldLog = true;
     let ast = parser.expression(res)
     expect(ast).toMatchObject({
-      token: {value: "=", type: logicParser.TokenType.Operator},
+      token: {value: "||", type: logicParser.TokenType.Operator},
       left: {
         token: {value: "(", type: logicParser.TokenType.Operator},
         left: {
-          token: {value: "&", type: logicParser.TokenType.Operator},
+          token: {value: "==", type: logicParser.TokenType.Operator},
           left: {
-            token: {value: "1", type: logicParser.TokenType.Number},
+            token: {value: "a", type: logicParser.TokenType.Word},
           },
           right: {
-            token: {value: "2", type: logicParser.TokenType.Number},
+            token: {value: "1", type: logicParser.TokenType.Number},
           },
         },
+        right: {
+          token: {value: ")", type: logicParser.TokenType.Operator},
+        }
       },
       right: {
-        token: {value: "3", type: logicParser.TokenType.Number},
+        token: {value: ">", type: logicParser.TokenType.Operator},
+        left: {
+          token: {value: "b", type: logicParser.TokenType.Word},
+        },
+        right: {
+          token: {value: "2", type: logicParser.TokenType.Number},
+        },
       },
     })
   })
 
-  test("(1 & (2 & 3)) = 4", () => {
-    let res: logicParser.Token[] = parser.lexicalAnalysis("(1 & (2 & 3)) = 4")
+  test("(a == 1 || b < 2) && c > 3", () => {
+    let res: logicParser.Token[] = parser.lexicalAnalysis("(a == 1 || b < 2) && c > 3")
     expect(res).toMatchObject([
       {value: "(", type: logicParser.TokenType.Operator},
+      {value: "a", type: logicParser.TokenType.Word},
+      {value: "==", type: logicParser.TokenType.Operator},
       {value: "1", type: logicParser.TokenType.Number},
-      {value: "&", type: logicParser.TokenType.Operator},
-      {value: "(", type: logicParser.TokenType.Operator},
+      {value: "||", type: logicParser.TokenType.Operator},
+      {value: "b", type: logicParser.TokenType.Word},
+      {value: "<", type: logicParser.TokenType.Operator},
       {value: "2", type: logicParser.TokenType.Number},
-      {value: "&", type: logicParser.TokenType.Operator},
+      {value: ")", type: logicParser.TokenType.Operator},
+      {value: "&&", type: logicParser.TokenType.Operator},
+      {value: "c", type: logicParser.TokenType.Word},
+      {value: ">", type: logicParser.TokenType.Operator},
       {value: "3", type: logicParser.TokenType.Number},
-      {value: ")", type: logicParser.TokenType.Operator},
-      {value: ")", type: logicParser.TokenType.Operator},
-      {value: "=", type: logicParser.TokenType.Operator},
-      {value: "4", type: logicParser.TokenType.Number},
     ])
 
-    parser.shouldLog = true;
     let ast = parser.expression(res)
     expect(ast).toMatchObject({
-      token: {value: "=", type: logicParser.TokenType.Operator},
+      token: {value: "&&", type: logicParser.TokenType.Operator},
       left: {
         token: {value: "(", type: logicParser.TokenType.Operator},
         left: {
-          token: {value: "&", type: logicParser.TokenType.Operator},
+          token: {value: "||", type: logicParser.TokenType.Operator},
           left: {
-            token: {value: "1", type: logicParser.TokenType.Number},
-          },
-          right: {
-            token: {value: "(", type: logicParser.TokenType.Operator},
+            token: {value: "==", type: logicParser.TokenType.Operator},
             left: {
-              token: {value: "&", type: logicParser.TokenType.Operator},
-              left: {
-                token: {value: "2", type: logicParser.TokenType.Number},
-              },
-              right: {
-                token: {value: "3", type: logicParser.TokenType.Number},
-              },
+              token: {value: "a", type: logicParser.TokenType.Word},
             },
             right: {
-              token: {value: ")", type: logicParser.TokenType.Operator},
+              token: {value: "1", type: logicParser.TokenType.Number},
+            },
+          },
+          right: {
+            token: {value: "<", type: logicParser.TokenType.Operator},
+            left: {
+              token: {value: "b", type: logicParser.TokenType.Word},
+            },
+            right: {
+              token: {value: "2", type: logicParser.TokenType.Number},
             },
           },
         },
         right: {
           token: {value: ")", type: logicParser.TokenType.Operator},
-        },
+        }
       },
       right: {
-        token: {value: "4", type: logicParser.TokenType.Number},
+        token: {value: ">", type: logicParser.TokenType.Operator},
+        left: {
+          token: {value: "c", type: logicParser.TokenType.Word},
+        },
+        right: {
+          token: {value: "3", type: logicParser.TokenType.Number},
+        },
       },
     })
   })
 })
 
-xdescribe("silly function", () => {
-  test("multiplication", () => {
-    let expression = "7 = 8"
-    expect(logicParser.evaluate(expression)).toBe(56)
-  })
+describe("Evaluation", () => {
+  let evaluater = new logicParser.Evaluater()
 
-  test("addition only", () => {
-    let expression = "7 & 8"
-    expect(logicParser.evaluate(expression)).toBe(15)
-  })
+  const testCases = [
+    {
+      expr: "a == 1",
+      facts: {"a": 1},
+      value: true,
+    },
+    {
+      expr: "a == 1",
+      facts: {"a": 2},
+      value: false,
+    },
+    {
+      expr: "a == 1",
+      facts: {"b": 1},
+      value: false,
+    },
+    {
+      expr: "a == 1 && b == 2",
+      facts: {"a": 1, "b": 2},
+      value: true
+    },
+    {
+      expr: "a == 1 && b == 2",
+      facts: {"a": 3, "b": 2},
+      value: false
+    },
+    {
+      expr: "a == 1 && b == 2",
+      facts: {"a": 1, "b": 4},
+      value: false
+    },
+    {
+      expr: "a == 1 && b == 2",
+      facts: {"a": 3, "b": 4},
+      value: false
+    },
+    {
+      expr: "a == 1 || b == 2",
+      facts: {"a": 1, "b": 2},
+      value: true
+    },
+    {
+      expr: "a == 1 || b == 2",
+      facts: {"a": 3, "b": 2},
+      value: true
+    },
+    {
+      expr: "a == 1 || b == 2",
+      facts: {"a": 1, "b": 4},
+      value: true
+    },
+    {
+      expr: "a == 1 || b == 2",
+      facts: {"a": 3, "b": 4},
+      value: false
+    },
+    {
+      expr: "(a == 1 || b == 2) && c == 3",
+      facts: {"a": 1, "b": 2, "c": 3},
+      value: true
+    },
+  ]
 
-  test("doubleDigit", () => {
-    let expression = "11 & 22"
-    expect(logicParser.evaluate(expression)).toBe(33)
-  })
-
-  test("addition only", () => {
-    let expression = "2 & 2 & 2"
-    expect(logicParser.evaluate(expression)).toBe(6)
-  })
-
-  test("add to multiple", () => {
-    let expression = "2 & (7 = 8)"
-    expect(logicParser.evaluate(expression)).toBe(58)
-  })
-
-  test("add then multiple", () => {
-    let expression = "(2 & 7) = 8"
-    expect(logicParser.evaluate(expression)).toBe(72)
-  })
-
-  test("add then multiple", () => {
-    let expression = "(2 = 7) & 8"
-    expect(logicParser.evaluate(expression)).toBe(22)
-  })
-})
-
-xdescribe("", () => {
-  test("add then multiple", () => {
-    let expression = "(2 & 7) = 8"
-    expect(logicParser.evaluate(expression)).toBe(72)
+  testCases.forEach((testCase) => {
+    const {expr, facts, value} = testCase
+    const factsString: string = Object.entries(facts).map(
+      ([k, v]) => {return k + "=" + v}
+    ).join("&")
+    const name = `${expr} for ${factsString}`
+    test(name, () => {
+      expect(evaluater.evaluate(expr, facts)).toBe(value)
+    })
   })
 })
