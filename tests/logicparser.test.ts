@@ -29,39 +29,39 @@ describe("Lexing", () => {
     {
       expr: "&&",
       match: [
-        {value: "&&", type: logicParser.TokenType.Operator}
+        {value: "&&", type: logicParser.TokenType.Keyword}
       ],
     },
     {
       expr: "||",
       match: [
-        {value: "||", type: logicParser.TokenType.Operator}
+        {value: "||", type: logicParser.TokenType.Keyword}
       ],
     },
     {
       expr: "==",
       match: [
-        {value: "==", type: logicParser.TokenType.Operator}
+        {value: "==", type: logicParser.TokenType.Keyword}
       ],
     },
     {
       expr: "where",
       match: [
-        {value: "where", type: logicParser.TokenType.Operator}
+        {value: "where", type: logicParser.TokenType.Keyword}
       ],
     },
     {
       expr: "a == 1 && (b < 3)",
       match: [
         {value: "a", type: logicParser.TokenType.Word},
-        {value: "==", type: logicParser.TokenType.Operator},
+        {value: "==", type: logicParser.TokenType.Keyword},
         {value: 1, type: logicParser.TokenType.Number},
-        {value: "&&", type: logicParser.TokenType.Operator},
-        {value: "(", type: logicParser.TokenType.Operator},
+        {value: "&&", type: logicParser.TokenType.Keyword},
+        {value: "(", type: logicParser.TokenType.Keyword},
         {value: "b", type: logicParser.TokenType.Word},
-        {value: "<", type: logicParser.TokenType.Operator},
+        {value: "<", type: logicParser.TokenType.Keyword},
         {value: 3, type: logicParser.TokenType.Number},
-        {value: ")", type: logicParser.TokenType.Operator},
+        {value: ")", type: logicParser.TokenType.Keyword},
       ],
     },
   ]
@@ -87,13 +87,13 @@ describe("AST parsing", ()  => {
     let res: logicParser.Token[] = parser.lexicalAnalysis("a == 1")
     expect(res).toMatchObject([
       {value: "a", type: logicParser.TokenType.Word},
-      {value: "==", type: logicParser.TokenType.Operator},
+      {value: "==", type: logicParser.TokenType.Keyword},
       {value: 1, type: logicParser.TokenType.Number},
     ])
 
     let ast = parser.expression(res)
     expect(ast).toMatchObject({
-      token: {value: "==", type: logicParser.TokenType.Operator},
+      token: {value: "==", type: logicParser.TokenType.Keyword},
       left: {
         token: {value: "a", type: logicParser.TokenType.Word},
       },
@@ -107,19 +107,19 @@ describe("AST parsing", ()  => {
     let res: logicParser.Token[] = parser.lexicalAnalysis("a == 1 && b > 2")
     expect(res).toMatchObject([
       {value: "a", type: logicParser.TokenType.Word},
-      {value: "==", type: logicParser.TokenType.Operator},
+      {value: "==", type: logicParser.TokenType.Keyword},
       {value: 1, type: logicParser.TokenType.Number},
-      {value: "&&", type: logicParser.TokenType.Operator},
+      {value: "&&", type: logicParser.TokenType.Keyword},
       {value: "b", type: logicParser.TokenType.Word},
-      {value: ">", type: logicParser.TokenType.Operator},
+      {value: ">", type: logicParser.TokenType.Keyword},
       {value: 2, type: logicParser.TokenType.Number},
     ])
 
     let ast = parser.expression(res)
     expect(ast).toMatchObject({
-      token: {value: "&&", type: logicParser.TokenType.Operator},
+      token: {value: "&&", type: logicParser.TokenType.Keyword},
       left: {
-        token: {value: "==", type: logicParser.TokenType.Operator},
+        token: {value: "==", type: logicParser.TokenType.Keyword},
         left: {
           token: {value: "a", type: logicParser.TokenType.Word},
         },
@@ -128,7 +128,7 @@ describe("AST parsing", ()  => {
         },
       },
       right: {
-        token: {value: ">", type: logicParser.TokenType.Operator},
+        token: {value: ">", type: logicParser.TokenType.Keyword},
         left: {
           token: {value: "b", type: logicParser.TokenType.Word},
         },
@@ -143,19 +143,19 @@ describe("AST parsing", ()  => {
     let res: logicParser.Token[] = parser.lexicalAnalysis("a == 1 || b > 2")
     expect(res).toMatchObject([
       {value: "a", type: logicParser.TokenType.Word},
-      {value: "==", type: logicParser.TokenType.Operator},
+      {value: "==", type: logicParser.TokenType.Keyword},
       {value: 1, type: logicParser.TokenType.Number},
-      {value: "||", type: logicParser.TokenType.Operator},
+      {value: "||", type: logicParser.TokenType.Keyword},
       {value: "b", type: logicParser.TokenType.Word},
-      {value: ">", type: logicParser.TokenType.Operator},
+      {value: ">", type: logicParser.TokenType.Keyword},
       {value: 2, type: logicParser.TokenType.Number},
     ])
 
     let ast = parser.expression(res)
     expect(ast).toMatchObject({
-      token: {value: "||", type: logicParser.TokenType.Operator},
+      token: {value: "||", type: logicParser.TokenType.Keyword},
       left: {
-        token: {value: "==", type: logicParser.TokenType.Operator},
+        token: {value: "==", type: logicParser.TokenType.Keyword},
         left: {
           token: {value: "a", type: logicParser.TokenType.Word},
         },
@@ -164,7 +164,7 @@ describe("AST parsing", ()  => {
         },
       },
       right: {
-        token: {value: ">", type: logicParser.TokenType.Operator},
+        token: {value: ">", type: logicParser.TokenType.Keyword},
         left: {
           token: {value: "b", type: logicParser.TokenType.Word},
         },
@@ -178,24 +178,24 @@ describe("AST parsing", ()  => {
   test("(a == 1) || b > 2", () => {
     let res: logicParser.Token[] = parser.lexicalAnalysis("(a == 1) || b > 2")
     expect(res).toMatchObject([
-      {value: "(", type: logicParser.TokenType.Operator},
+      {value: "(", type: logicParser.TokenType.Keyword},
       {value: "a", type: logicParser.TokenType.Word},
-      {value: "==", type: logicParser.TokenType.Operator},
+      {value: "==", type: logicParser.TokenType.Keyword},
       {value: 1, type: logicParser.TokenType.Number},
-      {value: ")", type: logicParser.TokenType.Operator},
-      {value: "||", type: logicParser.TokenType.Operator},
+      {value: ")", type: logicParser.TokenType.Keyword},
+      {value: "||", type: logicParser.TokenType.Keyword},
       {value: "b", type: logicParser.TokenType.Word},
-      {value: ">", type: logicParser.TokenType.Operator},
+      {value: ">", type: logicParser.TokenType.Keyword},
       {value: 2, type: logicParser.TokenType.Number},
     ])
 
     let ast = parser.expression(res)
     expect(ast).toMatchObject({
-      token: {value: "||", type: logicParser.TokenType.Operator},
+      token: {value: "||", type: logicParser.TokenType.Keyword},
       left: {
-        token: {value: "(", type: logicParser.TokenType.Operator},
+        token: {value: "(", type: logicParser.TokenType.Keyword},
         left: {
-          token: {value: "==", type: logicParser.TokenType.Operator},
+          token: {value: "==", type: logicParser.TokenType.Keyword},
           left: {
             token: {value: "a", type: logicParser.TokenType.Word},
           },
@@ -204,11 +204,11 @@ describe("AST parsing", ()  => {
           },
         },
         right: {
-          token: {value: ")", type: logicParser.TokenType.Operator},
+          token: {value: ")", type: logicParser.TokenType.Keyword},
         }
       },
       right: {
-        token: {value: ">", type: logicParser.TokenType.Operator},
+        token: {value: ">", type: logicParser.TokenType.Keyword},
         left: {
           token: {value: "b", type: logicParser.TokenType.Word},
         },
@@ -222,30 +222,30 @@ describe("AST parsing", ()  => {
   test("(a == 1 || b < 2) && c > 3", () => {
     let res: logicParser.Token[] = parser.lexicalAnalysis("(a == 1 || b < 2) && c > 3")
     expect(res).toMatchObject([
-      {value: "(", type: logicParser.TokenType.Operator},
+      {value: "(", type: logicParser.TokenType.Keyword},
       {value: "a", type: logicParser.TokenType.Word},
-      {value: "==", type: logicParser.TokenType.Operator},
+      {value: "==", type: logicParser.TokenType.Keyword},
       {value: 1, type: logicParser.TokenType.Number},
-      {value: "||", type: logicParser.TokenType.Operator},
+      {value: "||", type: logicParser.TokenType.Keyword},
       {value: "b", type: logicParser.TokenType.Word},
-      {value: "<", type: logicParser.TokenType.Operator},
+      {value: "<", type: logicParser.TokenType.Keyword},
       {value: 2, type: logicParser.TokenType.Number},
-      {value: ")", type: logicParser.TokenType.Operator},
-      {value: "&&", type: logicParser.TokenType.Operator},
+      {value: ")", type: logicParser.TokenType.Keyword},
+      {value: "&&", type: logicParser.TokenType.Keyword},
       {value: "c", type: logicParser.TokenType.Word},
-      {value: ">", type: logicParser.TokenType.Operator},
+      {value: ">", type: logicParser.TokenType.Keyword},
       {value: 3, type: logicParser.TokenType.Number},
     ])
 
     let ast = parser.expression(res)
     expect(ast).toMatchObject({
-      token: {value: "&&", type: logicParser.TokenType.Operator},
+      token: {value: "&&", type: logicParser.TokenType.Keyword},
       left: {
-        token: {value: "(", type: logicParser.TokenType.Operator},
+        token: {value: "(", type: logicParser.TokenType.Keyword},
         left: {
-          token: {value: "||", type: logicParser.TokenType.Operator},
+          token: {value: "||", type: logicParser.TokenType.Keyword},
           left: {
-            token: {value: "==", type: logicParser.TokenType.Operator},
+            token: {value: "==", type: logicParser.TokenType.Keyword},
             left: {
               token: {value: "a", type: logicParser.TokenType.Word},
             },
@@ -254,7 +254,7 @@ describe("AST parsing", ()  => {
             },
           },
           right: {
-            token: {value: "<", type: logicParser.TokenType.Operator},
+            token: {value: "<", type: logicParser.TokenType.Keyword},
             left: {
               token: {value: "b", type: logicParser.TokenType.Word},
             },
@@ -264,11 +264,11 @@ describe("AST parsing", ()  => {
           },
         },
         right: {
-          token: {value: ")", type: logicParser.TokenType.Operator},
+          token: {value: ")", type: logicParser.TokenType.Keyword},
         }
       },
       right: {
-        token: {value: ">", type: logicParser.TokenType.Operator},
+        token: {value: ">", type: logicParser.TokenType.Keyword},
         left: {
           token: {value: "c", type: logicParser.TokenType.Word},
         },

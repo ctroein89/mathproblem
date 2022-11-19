@@ -1,6 +1,6 @@
 const numberRegex = /[\d\.]/
 const wordRegex = /[A-Za-z\d-_]/
-const permittedOperators = /[\&|<>=\(\)]/
+const permittedKeywords = /[\&|<>=\(\)]/
 const startSubExpression = /\(/;
 const endSubExpression = /\)/;
 
@@ -48,7 +48,7 @@ const Comparitors = [
 ]
 
 export enum TokenType {
-  Operator = "OP",
+  Keyword = "OP",
   Number = "NUM",
   Word = "WORD",
 }
@@ -118,7 +118,7 @@ export class Parser {
       }
       // if word in keyword, use that instead
       if (keywordMapping[inProgressToken]) {
-        t.type = TokenType.Operator
+        t.type = TokenType.Keyword
       }
 
       if (typeInProgress == TokenType.Number) {
@@ -149,9 +149,9 @@ export class Parser {
       checkCompleteToken(c)
 
       let validChar = false
-      if (permittedOperators.test(c)) {
+      if (permittedKeywords.test(c)) {
         validChar = true
-        if (!typeInProgress) typeInProgress = TokenType.Operator
+        if (!typeInProgress) typeInProgress = TokenType.Keyword
       } else if (numberRegex.test(c)) {
         validChar = true
         if (!typeInProgress) typeInProgress = TokenType.Number
@@ -179,7 +179,7 @@ export class Parser {
     for (let i = 0; i < tokens.length; i++) {
       let token: Token = tokens[i]
       if (lastToken && (
-        lastToken?.type != TokenType.Operator && token.type != TokenType.Operator
+        lastToken?.type != TokenType.Keyword && token.type != TokenType.Keyword
       )) {
         throw new Error(`${lastToken.value} ${token.value} forms an illegal combination`)
       }
@@ -297,7 +297,7 @@ export class Parser {
 
 export class Evaluater {
   compareLeaves(ast: AstNode, facts: any): boolean {
-    if (ast.token.type != TokenType.Operator) {
+    if (ast.token.type != TokenType.Keyword) {
       return false
     }
 
@@ -353,7 +353,7 @@ export class Evaluater {
   evaluateAst(ast: AstNode, facts: Object): boolean {
     let result: boolean | undefined
     const token = ast.token
-    if (token.type == TokenType.Operator) {
+    if (token.type == TokenType.Keyword) {
       if (typeof token.value === "string" && [
         Keyword.AND as string,
         Keyword.OR as string,
