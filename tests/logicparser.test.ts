@@ -344,6 +344,11 @@ describe("Evaluation", () => {
       facts: {"a": 1, "b": 2, "c": 3},
       value: true
     },
+    {
+      expr: "a == 1 where b == 2",
+      facts: {"a": 1, "b": 2, "c": 3},
+      value: true
+    },
   ]
 
   testCases.forEach((testCase) => {

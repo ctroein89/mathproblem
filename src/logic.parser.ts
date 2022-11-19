@@ -56,16 +56,19 @@ export enum TokenType {
 export interface Token {
   value: string | Keyword | number;
   type: TokenType;
+  debug?: any;
 }
 
 export interface KeywordToken extends Token {
   value: Keyword;
   type: TokenType;
+  debug?: any;
 }
 
 export interface WordToken extends Token {
   value: string;
   type: TokenType;
+  debug?: any;
 }
 
 export interface AstNode {
@@ -85,6 +88,7 @@ export class Parser {
   i: number = 0;
   eof: boolean = false;
   shouldLog: boolean = false;
+  expr: string | undefined;
 
   next(): void {
     this.i = this.i + 1
@@ -110,11 +114,18 @@ export class Parser {
     let tokens: Token[] = []
     let inProgressToken: string = ""
     let typeInProgress: TokenType | undefined
+    this.expr = expression
+    let i = 0
+    let start: number = 0
 
     function createToken() {
       let t: Token = {
         value: inProgressToken,
         type: TokenType.Word,
+        debug: {
+          start: start,
+          end: i,
+        }
       }
       // if word in keyword, use that instead
       if (keywordMapping[inProgressToken]) {
@@ -131,6 +142,7 @@ export class Parser {
       if (!!t) tokens.push(t)
       inProgressToken = ""
       typeInProgress = undefined
+      start = i
     }
 
     function checkCompleteToken(c: string) {
@@ -165,6 +177,7 @@ export class Parser {
       if (validChar) {
         inProgressToken += c
       }
+      i++
     }
     createToken()
 
