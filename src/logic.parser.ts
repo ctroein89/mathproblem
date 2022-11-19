@@ -19,6 +19,25 @@ enum Keyword {
   NOT_EQUAL_TO = "!=",
 }
 
+const keywordMapping: {[key:string]: Keyword} = {
+  "&&": Keyword.AND,
+  "||": Keyword.OR,
+  "where": Keyword.WHERE,
+  "in": Keyword.IN,
+  "(": Keyword.PARENTHESES_OPEN,
+  ")": Keyword.PARENTHESES_CLOSE,
+  "==": Keyword.EQUALTO,
+  ">=": Keyword.GREAT_THAN_OR_EQUALTO,
+  "<=": Keyword.LESS_THAN_OR_EQUALTO,
+  ">": Keyword.GREAT_THAN,
+  "<": Keyword.LESS_THAN,
+  "!=": Keyword.NOT_EQUAL_TO,
+}
+
+
+
+
+
 const Comparitors = [
   Keyword.EQUALTO,
   Keyword.GREAT_THAN_OR_EQUALTO,
@@ -35,6 +54,16 @@ export enum TokenType {
 }
 
 export interface Token {
+  value: string | Keyword | number;
+  type: TokenType;
+}
+
+export interface KeywordToken extends Token {
+  value: Keyword;
+  type: TokenType;
+}
+
+export interface WordToken extends Token {
   value: string;
   type: TokenType;
 }
@@ -79,29 +108,38 @@ export class Parser {
    */
   lexicalAnalysis(expression: string): Token[] {
     let tokens: Token[] = []
-    let increateToken: string = ""
+    let inProgressToken: string = ""
     let typeInProgress: TokenType | undefined
 
     function createToken() {
-      let token: Token = {
-        value: increateToken,
-        type: typeInProgress!,
+      let t: Token = {
+        value: inProgressToken,
+        type: TokenType.Word,
       }
-      tokens.push(token)
-      increateToken = ""
+      // if word in keyword, use that instead
+      if (keywordMapping[inProgressToken]) {
+        t.type = TokenType.Operator
+      }
+
+      if (typeInProgress == TokenType.Number) {
+        let num: number = /\./.test(inProgressToken) ? parseFloat(inProgressToken) : parseInt(inProgressToken)
+        t = {
+          value: num,
+          type: TokenType.Number,
+        }
+      }
+      if (!!t) tokens.push(t)
+      inProgressToken = ""
       typeInProgress = undefined
     }
 
     function checkCompleteToken(c: string) {
-      if (increateToken) {
+      if (inProgressToken) {
         if (typeInProgress == TokenType.Number && !numberRegex.test(c)) {
           createToken()
         } else if (typeInProgress == TokenType.Word && !wordRegex.test(c)) {
           createToken()
-        } else if (typeInProgress == TokenType.Operator && !permittedOperators.test(c)) {
-          createToken()
-        } else if (['(', ')'].includes(increateToken)) {
-          // special tokens that complete instantly
+        } else if (keywordMapping[inProgressToken]) {
           createToken()
         }
       }
@@ -125,7 +163,7 @@ export class Parser {
         throw new Error(`Invalid character: '${c}'`)
       }
       if (validChar) {
-        increateToken += c
+        inProgressToken += c
       }
     }
     createToken()
@@ -234,7 +272,10 @@ export class Parser {
     // we could handle subtraction here for simplicity, it's just addition
     // I've seen examples where unary operator is handled seperately
     // and it may be worth reworking 'x - y' to 'x + -y'
-    if (!this.eof && [Keyword.AND as string, Keyword.OR as string].includes(token.value)) {
+    if (!this.eof &&
+      typeof token.value === "string" &&
+      [Keyword.AND as string, Keyword.OR as string].includes(token.value)
+    ) {
       let node: AstNode = {
         token: token
       }
@@ -261,7 +302,7 @@ export class Evaluater {
     }
 
     let value: string | number
-    let leftHandSide: string | undefined = ast.left?.token?.value
+    let leftHandSide: string | number | undefined = ast.left?.token?.value
     if (leftHandSide && typeof leftHandSide === "string" && typeof facts === "object") {
       value = facts[leftHandSide]
     } else {
@@ -313,7 +354,7 @@ export class Evaluater {
     let result: boolean | undefined
     const token = ast.token
     if (token.type == TokenType.Operator) {
-      if ([
+      if (typeof token.value === "string" && [
         Keyword.AND as string,
         Keyword.OR as string,
       ].includes(token.value)) {
@@ -321,14 +362,14 @@ export class Evaluater {
       } else if (Comparitors.includes(token.value as Keyword)) {
         // comparisons
         return  this.compareLeaves(ast, facts)
-      } else if (["(", ")"].includes(token.value)) {
+      } else if (typeof token.value === "string" && ["(", ")"].includes(token.value)) {
         return this.evaluateAst(ast.left!, facts)
       } else {
         throw new Error(`Unhandled operator: '${token.value}'. This is a problem is the expression evaluation.`)
       }
     }
 
-    throw new Error(`Unhandled ast type of: '${ast.token.type}'`)
+    throw new Error(`Unhandled ast type of: '${ast.token.type}' for ${JSON.stringify(ast.token)}`)
   }
 
   evaluate(expression: string, facts: Object): boolean {

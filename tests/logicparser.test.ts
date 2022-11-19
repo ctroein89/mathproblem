@@ -7,59 +7,72 @@ describe("Lexing", () => {
     parser = new logicParser.Parser()
   })
 
-  test("number", () => {
-    let res: logicParser.Token[] = parser.lexicalAnalysis("1")
-    expect(res).toMatchObject([{value: "1", type: logicParser.TokenType.Number}])
-  })
+  const testCases = [
+    {
+      expr: "1",
+      match: [
+        {value: 1, type: logicParser.TokenType.Number}
+      ],
+    },
+    {
+      expr: "11",
+      match: [
+        {value: 11, type: logicParser.TokenType.Number}
+      ],
+    },
+    {
+      expr: "1.2",
+      match: [
+        {value: 1.2, type: logicParser.TokenType.Number}
+      ],
+    },
+    {
+      expr: "&&",
+      match: [
+        {value: "&&", type: logicParser.TokenType.Operator}
+      ],
+    },
+    {
+      expr: "||",
+      match: [
+        {value: "||", type: logicParser.TokenType.Operator}
+      ],
+    },
+    {
+      expr: "==",
+      match: [
+        {value: "==", type: logicParser.TokenType.Operator}
+      ],
+    },
+    {
+      expr: "where",
+      match: [
+        {value: "where", type: logicParser.TokenType.Operator}
+      ],
+    },
+    {
+      expr: "a == 1 && (b < 3)",
+      match: [
+        {value: "a", type: logicParser.TokenType.Word},
+        {value: "==", type: logicParser.TokenType.Operator},
+        {value: 1, type: logicParser.TokenType.Number},
+        {value: "&&", type: logicParser.TokenType.Operator},
+        {value: "(", type: logicParser.TokenType.Operator},
+        {value: "b", type: logicParser.TokenType.Word},
+        {value: "<", type: logicParser.TokenType.Operator},
+        {value: 3, type: logicParser.TokenType.Number},
+        {value: ")", type: logicParser.TokenType.Operator},
+      ],
+    },
+  ]
 
-  test("double digit number", () => {
-    let res: logicParser.Token[] = parser.lexicalAnalysis("11")
-    expect(res).toMatchObject([{value: "11", type: logicParser.TokenType.Number}])
-  })
-
-  test("1.2", () => {
-    let res: logicParser.Token[] = parser.lexicalAnalysis("1.2")
-    expect(res).toMatchObject([{value: "1.2", type: logicParser.TokenType.Number}])
-  })
-
-  test("&", () => {
-    let res: logicParser.Token[] = parser.lexicalAnalysis("&")
-    expect(res).toMatchObject([{value: "&", type: logicParser.TokenType.Operator}])
-  })
-
-  test("&&", () => {
-    let res: logicParser.Token[] = parser.lexicalAnalysis("&&")
-    expect(res).toMatchObject([{value: "&&", type: logicParser.TokenType.Operator}])
-  })
-
-  test("||", () => {
-    let res: logicParser.Token[] = parser.lexicalAnalysis("||")
-    expect(res).toMatchObject([{value: "||", type: logicParser.TokenType.Operator}])
-  })
-
-  test("<<", () => {
-    let res: logicParser.Token[] = parser.lexicalAnalysis("<<")
-    expect(res).toMatchObject([{value: "<<", type: logicParser.TokenType.Operator}])
-  })
-
-  test("=", () => {
-    let res: logicParser.Token[] = parser.lexicalAnalysis("=")
-    expect(res).toMatchObject([{value: "=", type: logicParser.TokenType.Operator}])
-  })
-
-  test("a == 1 && (b < 3)", () => {
-    let res: logicParser.Token[] = parser.lexicalAnalysis("a == 1 && (b < 3)")
-    expect(res).toMatchObject([
-      {value: "a", type: logicParser.TokenType.Word},
-      {value: "==", type: logicParser.TokenType.Operator},
-      {value: "1", type: logicParser.TokenType.Number},
-      {value: "&&", type: logicParser.TokenType.Operator},
-      {value: "(", type: logicParser.TokenType.Operator},
-      {value: "b", type: logicParser.TokenType.Word},
-      {value: "<", type: logicParser.TokenType.Operator},
-      {value: "3", type: logicParser.TokenType.Number},
-      {value: ")", type: logicParser.TokenType.Operator},
-    ])
+  testCases.forEach((testCase) => {
+    const {expr, match} = testCase
+    test(expr, () => {
+      expect(
+        parser.lexicalAnalysis(expr)
+      ).toMatchObject(match)
+    })
   })
 })
 
@@ -75,7 +88,7 @@ describe("AST parsing", ()  => {
     expect(res).toMatchObject([
       {value: "a", type: logicParser.TokenType.Word},
       {value: "==", type: logicParser.TokenType.Operator},
-      {value: "1", type: logicParser.TokenType.Number},
+      {value: 1, type: logicParser.TokenType.Number},
     ])
 
     let ast = parser.expression(res)
@@ -85,7 +98,7 @@ describe("AST parsing", ()  => {
         token: {value: "a", type: logicParser.TokenType.Word},
       },
       right: {
-        token: {value: "1", type: logicParser.TokenType.Number},
+        token: {value: 1, type: logicParser.TokenType.Number},
       },
     })
   })
@@ -95,11 +108,11 @@ describe("AST parsing", ()  => {
     expect(res).toMatchObject([
       {value: "a", type: logicParser.TokenType.Word},
       {value: "==", type: logicParser.TokenType.Operator},
-      {value: "1", type: logicParser.TokenType.Number},
+      {value: 1, type: logicParser.TokenType.Number},
       {value: "&&", type: logicParser.TokenType.Operator},
       {value: "b", type: logicParser.TokenType.Word},
       {value: ">", type: logicParser.TokenType.Operator},
-      {value: "2", type: logicParser.TokenType.Number},
+      {value: 2, type: logicParser.TokenType.Number},
     ])
 
     let ast = parser.expression(res)
@@ -111,7 +124,7 @@ describe("AST parsing", ()  => {
           token: {value: "a", type: logicParser.TokenType.Word},
         },
         right: {
-          token: {value: "1", type: logicParser.TokenType.Number},
+          token: {value: 1, type: logicParser.TokenType.Number},
         },
       },
       right: {
@@ -120,7 +133,7 @@ describe("AST parsing", ()  => {
           token: {value: "b", type: logicParser.TokenType.Word},
         },
         right: {
-          token: {value: "2", type: logicParser.TokenType.Number},
+          token: {value: 2, type: logicParser.TokenType.Number},
         },
       },
     })
@@ -131,11 +144,11 @@ describe("AST parsing", ()  => {
     expect(res).toMatchObject([
       {value: "a", type: logicParser.TokenType.Word},
       {value: "==", type: logicParser.TokenType.Operator},
-      {value: "1", type: logicParser.TokenType.Number},
+      {value: 1, type: logicParser.TokenType.Number},
       {value: "||", type: logicParser.TokenType.Operator},
       {value: "b", type: logicParser.TokenType.Word},
       {value: ">", type: logicParser.TokenType.Operator},
-      {value: "2", type: logicParser.TokenType.Number},
+      {value: 2, type: logicParser.TokenType.Number},
     ])
 
     let ast = parser.expression(res)
@@ -147,7 +160,7 @@ describe("AST parsing", ()  => {
           token: {value: "a", type: logicParser.TokenType.Word},
         },
         right: {
-          token: {value: "1", type: logicParser.TokenType.Number},
+          token: {value: 1, type: logicParser.TokenType.Number},
         },
       },
       right: {
@@ -156,7 +169,7 @@ describe("AST parsing", ()  => {
           token: {value: "b", type: logicParser.TokenType.Word},
         },
         right: {
-          token: {value: "2", type: logicParser.TokenType.Number},
+          token: {value: 2, type: logicParser.TokenType.Number},
         },
       },
     })
@@ -168,12 +181,12 @@ describe("AST parsing", ()  => {
       {value: "(", type: logicParser.TokenType.Operator},
       {value: "a", type: logicParser.TokenType.Word},
       {value: "==", type: logicParser.TokenType.Operator},
-      {value: "1", type: logicParser.TokenType.Number},
+      {value: 1, type: logicParser.TokenType.Number},
       {value: ")", type: logicParser.TokenType.Operator},
       {value: "||", type: logicParser.TokenType.Operator},
       {value: "b", type: logicParser.TokenType.Word},
       {value: ">", type: logicParser.TokenType.Operator},
-      {value: "2", type: logicParser.TokenType.Number},
+      {value: 2, type: logicParser.TokenType.Number},
     ])
 
     let ast = parser.expression(res)
@@ -187,7 +200,7 @@ describe("AST parsing", ()  => {
             token: {value: "a", type: logicParser.TokenType.Word},
           },
           right: {
-            token: {value: "1", type: logicParser.TokenType.Number},
+            token: {value: 1, type: logicParser.TokenType.Number},
           },
         },
         right: {
@@ -200,7 +213,7 @@ describe("AST parsing", ()  => {
           token: {value: "b", type: logicParser.TokenType.Word},
         },
         right: {
-          token: {value: "2", type: logicParser.TokenType.Number},
+          token: {value: 2, type: logicParser.TokenType.Number},
         },
       },
     })
@@ -212,16 +225,16 @@ describe("AST parsing", ()  => {
       {value: "(", type: logicParser.TokenType.Operator},
       {value: "a", type: logicParser.TokenType.Word},
       {value: "==", type: logicParser.TokenType.Operator},
-      {value: "1", type: logicParser.TokenType.Number},
+      {value: 1, type: logicParser.TokenType.Number},
       {value: "||", type: logicParser.TokenType.Operator},
       {value: "b", type: logicParser.TokenType.Word},
       {value: "<", type: logicParser.TokenType.Operator},
-      {value: "2", type: logicParser.TokenType.Number},
+      {value: 2, type: logicParser.TokenType.Number},
       {value: ")", type: logicParser.TokenType.Operator},
       {value: "&&", type: logicParser.TokenType.Operator},
       {value: "c", type: logicParser.TokenType.Word},
       {value: ">", type: logicParser.TokenType.Operator},
-      {value: "3", type: logicParser.TokenType.Number},
+      {value: 3, type: logicParser.TokenType.Number},
     ])
 
     let ast = parser.expression(res)
@@ -237,7 +250,7 @@ describe("AST parsing", ()  => {
               token: {value: "a", type: logicParser.TokenType.Word},
             },
             right: {
-              token: {value: "1", type: logicParser.TokenType.Number},
+              token: {value: 1, type: logicParser.TokenType.Number},
             },
           },
           right: {
@@ -246,7 +259,7 @@ describe("AST parsing", ()  => {
               token: {value: "b", type: logicParser.TokenType.Word},
             },
             right: {
-              token: {value: "2", type: logicParser.TokenType.Number},
+              token: {value: 2, type: logicParser.TokenType.Number},
             },
           },
         },
@@ -260,7 +273,7 @@ describe("AST parsing", ()  => {
           token: {value: "c", type: logicParser.TokenType.Word},
         },
         right: {
-          token: {value: "3", type: logicParser.TokenType.Number},
+          token: {value: 3, type: logicParser.TokenType.Number},
         },
       },
     })
