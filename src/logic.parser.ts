@@ -1,18 +1,8 @@
-const digitCheck = /[\d]/
-const permittedOperators = /[*/+-]/
+const numberRegex = /[\d\.]/
+const wordRegex = /[A-Za-z\d-_]/
+const permittedOperators = /[\&|<>=\(\)]/
 const startSubExpression = /\(/;
 const endSubExpression = /\)/;
-
-function getFullValue(expression: string) {
-  let accumulated: string = ""
-  for (let i = 0; i < expression.length; i++) {
-    if (!digitCheck.test(expression[i])) {
-      return {val: parseInt(accumulated), i: i}
-    }
-    accumulated = accumulated + expression[i];
-  }
-  return {val: parseInt(accumulated) || -1, i: expression.length}
-}
 
 enum Keyword {
   AND = "&&",
@@ -25,6 +15,7 @@ enum Keyword {
 export enum TokenType {
   Operator = "OP",
   Number = "NUM",
+  Word = "WORD",
 }
 
 export interface Token {
@@ -71,43 +62,62 @@ export class Parser {
    * the data
    */
   lexicalAnalysis(expression: string): Token[] {
-    let res = []
-    let token: Token
+    let tokens: Token[] = []
     let incompleteToken: string = ""
     let typeInProgress: TokenType | undefined
 
-    function createNumber() {
-      token = {
+    function completeToken() {
+      let token: Token = {
         value: incompleteToken,
-        type: TokenType.Number,
+        type: typeInProgress!,
       }
-      res.push(token)
+      tokens.push(token)
       incompleteToken = ""
+      typeInProgress = undefined
+    }
+
+    function checkCompleteToken(c: string) {
+      if (incompleteToken) {
+        if (typeInProgress == TokenType.Number && !numberRegex.test(c)) {
+          completeToken()
+        }
+        if (typeInProgress == TokenType.Word && !wordRegex.test(c)) {
+          completeToken()
+        }
+        if (typeInProgress == TokenType.Operator && !permittedOperators.test(c)) {
+          completeToken()
+        }
+        // special tokens that complete instantly
+        if (['(', ')'].includes(incompleteToken)) {
+          completeToken()
+        }
+      }
     }
 
     for (let c of expression) {
-      if (incompleteToken && !digitCheck.test(c)) {
-        createNumber()
-      }
-      if (["*", "+", "(", ")"].includes(c)) {
-        token = {
-          value: c,
-          type: TokenType.Operator,
-        }
-        if (!!token) res.push(token)
-      } else if (digitCheck.test(c)) {
-        incompleteToken += c
-      } else if (c === " ") {
+      checkCompleteToken(c)
 
+      let validChar = false
+      if (permittedOperators.test(c)) {
+        validChar = true
+        if (!typeInProgress) typeInProgress = TokenType.Operator
+      } else if (numberRegex.test(c)) {
+        validChar = true
+        if (!typeInProgress) typeInProgress = TokenType.Number
+      } else if (wordRegex.test(c)) {
+        validChar = true
+        if (!typeInProgress) typeInProgress = TokenType.Word
+      } else if (c === " ") {
       } else {
         throw new Error(`Invalid character: '${c}'`)
       }
+      if (validChar) {
+        incompleteToken += c
+      }
     }
-    if (incompleteToken) {
-      createNumber()
-    }
+    completeToken()
 
-    return res
+    return tokens
   }
 
 
@@ -149,7 +159,7 @@ export class Parser {
     // In a classic example of this, 'x / y * z' is treated as 'x * (1/y) * z'
     // but it's worth clarifying the rules to ensure that that is correct, ie
     // it's equally valid to read it as 'x / (y * z)'
-    if (!this.eof && token?.value == "*") {
+    if (!this.eof && token?.value == "=") {
       let node: AstNode = {
         token: token
       }
@@ -170,7 +180,7 @@ export class Parser {
     // we could handle subtraction here for simplicity, it's just addition
     // I've seen examples where unary operator is handled seperately
     // and it may be worth reworking 'x - y' to 'x + -y'
-    if (!this.eof && token?.value == "+") {
+    if (!this.eof && token?.value == "&") {
       let node: AstNode = {
         token: token
       }
@@ -196,9 +206,9 @@ export function evaluateAst(expressionTree: AstNode): number {
     return parseInt(expressionTree.token.value) ? parseInt(expressionTree.token.value) : 0;
   }
   if (expressionTree.token.type == TokenType.Operator) {
-    if (expressionTree.token.value == "*") {
+    if (expressionTree.token.value == "=") {
       return evaluateAst(expressionTree.left!) * evaluateAst(expressionTree.right!)
-    } else if (expressionTree.token.value == "+") {
+    } else if (expressionTree.token.value == "&") {
       return evaluateAst(expressionTree.left!) + evaluateAst(expressionTree.right!)
     } else if (expressionTree.token.value == "(") {
       // don't need to handle ")" case, because it's always the right hand side of "("
