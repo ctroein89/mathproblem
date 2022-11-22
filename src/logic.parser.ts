@@ -1,6 +1,6 @@
 const numberRegex = /[\d\.]/
 const wordRegex = /[A-Za-z\d-_]/
-const permittedKeywords = /[\&|<>=\(\)\[\]]/
+const permittedKeywords = /[\&|<>=\(\)\[\]!]/
 
 enum Keyword {
   AND = "&&",
@@ -42,7 +42,7 @@ const Comparitors = [
   Keyword.LESS_THAN_OR_EQUALTO,
   Keyword.GREAT_THAN,
   Keyword.LESS_THAN,
-  Keyword.NOT_EQUAL_TO as string,
+  Keyword.NOT_EQUAL_TO,
 ]
 
 export enum TokenType {
@@ -153,7 +153,7 @@ export class Parser {
           createToken()
         } else if (typeInProgress == TokenType.Word && !wordRegex.test(c)) {
           createToken()
-        } else if (keywordMapping[inProgressToken]) {
+        } else if (keywordMapping[inProgressToken] && !permittedKeywords.test(c)) {
           createToken()
         }
       }
@@ -245,28 +245,41 @@ export class Parser {
     }
   }
 
-  private brackets(): AstNode | undefined {
+  private group(open: Keyword, close: Keyword, subItemFn: Function): AstNode | undefined {
     let sub_expr = this.literal()
     if (sub_expr) {
       return sub_expr
     }
 
     let token = this.tokens[this.i]
-    let node: AstNode
+    if (token.value as Keyword !== open) {
+      return
+    }
 
     this.next()
-    node = {
+    let node: AstNode = {
       token: token
     }
     this.render(node)
-    node.left = this.listItem()
+    node.left = subItemFn.call(this)
+
+    if (this.eof || this.tokens[this.i]?.value !== close) {
+      this.back()
+    }
     node.right = {
       token: this.tokens[this.i]
     }
-    this.next()
 
     this.render(node)
     return node
+  }
+
+  private brackets(): AstNode | undefined {
+    let sub_expr = this.literal()
+    if (sub_expr) {
+      return sub_expr
+    }
+    return this.group(Keyword.BRACKET_OPEN, Keyword.BRACKET_CLOSE, this.listItem)
   }
 
   private in(): AstNode | undefined {
@@ -282,28 +295,7 @@ export class Parser {
     if (sub_expr) {
       return sub_expr
     }
-
-    let token = this.tokens[this.i]
-    let node: AstNode
-    if (this.eof || token?.value !== Keyword.PARENTHESES_OPEN) {
-      throw new Error(`Getting neither a literal nor a '${Keyword.PARENTHESES_OPEN}' is unexpected`)
-    }
-
-    this.next()
-    node = {
-      token: token
-    }
-    this.render(node)
-    node.left = this.expression()
-    if (this.eof || this.tokens[this.i]?.value !== Keyword.PARENTHESES_CLOSE) {
-      this.back()
-    }
-
-    node.right = {
-      token: this.tokens[this.i]
-    }
-    this.render(node)
-    return node
+    return this.group(Keyword.PARENTHESES_OPEN, Keyword.PARENTHESES_CLOSE, this.expression)
   }
 
   private operator(
@@ -421,9 +413,9 @@ export class Evaluater {
         return value < rightHandSide
       case Keyword.NOT_EQUAL_TO:
         return value != rightHandSide
+      default:
+        return false
     }
-
-    return false
   }
 
   evaluateBoolean(ast: AstNode, facts: Object): boolean {
@@ -432,21 +424,15 @@ export class Evaluater {
       return this.evaluateAst(ast.left!, facts) &&
         this.evaluateAst(ast.right!, facts)
     }
-    if (token.value === Keyword.OR) {
-      return this.evaluateAst(ast.left!, facts) ||
-        this.evaluateAst(ast.right!, facts)
-    }
-    throw new Error(`Unhandled boolean operator: '${token.value}'`)
+    // Keyword.OR
+    return this.evaluateAst(ast.left!, facts) ||
+      this.evaluateAst(ast.right!, facts)
   }
 
   evaluateList(leftHandSide: Token, ast: AstNode, facts: any): boolean {
-    if (![TokenType.Number, TokenType.Word].includes(leftHandSide.type)) {
-      throw new Error(`Malformed list. leftHandSide was: ${JSON.stringify(leftHandSide)}`)
-    }
     let value: string | number
-    if (leftHandSide && typeof leftHandSide.value === "string" && typeof facts === "object") {
-      value = facts[leftHandSide.value]
-    } else {
+    value = facts[leftHandSide.value]
+    if (typeof ast === "undefined") {
       return false
     }
     let any = ast.token.value == value
@@ -506,10 +492,10 @@ export class Evaluater {
         Keyword.PARENTHESES_CLOSE as string
       ].includes(token.value)) {
       return this.evaluateAst(ast.left!, facts)
-    } else if (typeof token.value === "string" &&
-      [Keyword.PARENTHESES_OPEN, Keyword.PARENTHESES_CLOSE].includes(token.value as Keyword)
-    ) {
-      return this.evaluateAst(ast.left!, facts)
+    // } else if (typeof token.value === "string" &&
+      // [Keyword.PARENTHESES_OPEN, Keyword.PARENTHESES_CLOSE].includes(token.value as Keyword)
+    //) {
+      // return this.evaluateAst(ast.left!, facts)
     } else if (token.value as Keyword === Keyword.IN) {
       return this.evaluateIn(ast, facts)
     } else if (token.value as Keyword == Keyword.WHERE) {

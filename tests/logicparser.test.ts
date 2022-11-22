@@ -17,10 +17,36 @@ describe("Errors", () => {
 
   test("operator in list", () => {
     expect(
-      () => parser.lexicalAnalysis("[&& 1 2]")
+      () => parser.lexicalAnalysis("[ && 1 2]")
     ).toThrow(
-      `ERROR: Values in a list must be words or numbers\nCode:\n\t[&& 1 2]`
+      `ERROR: Values in a list must be words or numbers\nCode:\n\t[ && 1 2]`
     )
+  })
+
+  test("unhandled operator", () => {
+    let ast: logicParser.AstNode = {
+      token: {value: "--", type: logicParser.TokenType.Keyword},
+      left: {
+        token: {value: "a", type: logicParser.TokenType.Word},
+      },
+      right: {
+        token: {value: 2, type: logicParser.TokenType.Number},
+      },
+    }
+    let evaluater = new logicParser.Evaluater()
+    expect(
+      () => evaluater.evaluateAst(ast, {"a": 1})
+    ).toThrow(`Unhandled operator: '--'. This is a problem is the expression evaluation.`)
+  })
+
+  test("unhandled ast type", () => {
+    let ast: logicParser.AstNode = {
+      token: {value: "a", type: logicParser.TokenType.Word},
+    }
+    let evaluater = new logicParser.Evaluater()
+    expect(
+      () => evaluater.evaluateAst(ast, {"a": 1})
+    ).toThrow(`Unhandled ast type of: 'WORD' for {\"value\":\"a\",\"type\":\"WORD\"}`)
   })
 })
 
@@ -66,6 +92,12 @@ describe("Lexing", () => {
       expr: "==",
       match: [
         {value: "==", type: logicParser.TokenType.Keyword}
+      ],
+    },
+    {
+      expr: ">=",
+      match: [
+        {value: ">=", type: logicParser.TokenType.Keyword}
       ],
     },
     {
@@ -392,6 +424,81 @@ describe("Evaluation", () => {
       value: false,
     },
     {
+      expr: "a >= 1",
+      facts: {"a": 1},
+      value: true,
+    },
+    {
+      expr: "a >= 1",
+      facts: {"a": 2},
+      value: true,
+    },
+    {
+      expr: "a >= 1",
+      facts: {"a": 0},
+      value: false,
+    },
+    {
+      expr: "a <= 1",
+      facts: {"a": 1},
+      value: true,
+    },
+    {
+      expr: "a <= 1",
+      facts: {"a": 2},
+      value: false,
+    },
+    {
+      expr: "a <= 1",
+      facts: {"a": 0},
+      value: true,
+    },
+    {
+      expr: "a > 1",
+      facts: {"a": 1},
+      value: false,
+    },
+    {
+      expr: "a > 1",
+      facts: {"a": 2},
+      value: true,
+    },
+    {
+      expr: "a > 1",
+      facts: {"a": 0},
+      value: false,
+    },
+    {
+      expr: "a < 1",
+      facts: {"a": 1},
+      value: false,
+    },
+    {
+      expr: "a < 1",
+      facts: {"a": 2},
+      value: false,
+    },
+    {
+      expr: "a < 1",
+      facts: {"a": 0},
+      value: true,
+    },
+    {
+      expr: "a != 1",
+      facts: {"a": 1},
+      value: false,
+    },
+    {
+      expr: "a != 1",
+      facts: {"a": 2},
+      value: true,
+    },
+    {
+      expr: "a != 1",
+      facts: {"a": 0},
+      value: true,
+    },
+    {
       expr: "a == 1 && b == 2",
       facts: {"a": 1, "b": 2},
       value: true
@@ -535,6 +642,26 @@ describe("Evaluation", () => {
     {
       expr: "a in [1 2]",
       facts: {"a": 3, "b": 3, "c": 3},
+      value: false
+    },
+    {
+      expr: "a in [1 2] where c == 3",
+      facts: {"a": 1, "b": 3, "c": 3},
+      value: true
+    },
+    {
+      expr: "(a in [1 2]) where c == 3",
+      facts: {"a": 1, "b": 3, "c": 3},
+      value: true
+    },
+    {
+      expr: "a in [ ]",
+      facts: {"a": 1},
+      value: false
+    },
+    {
+      expr: "- in [ 1 ]",
+      facts: { },
       value: false
     },
   ]
