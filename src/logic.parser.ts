@@ -1,8 +1,6 @@
 const numberRegex = /[\d\.]/
 const wordRegex = /[A-Za-z\d-_]/
 const permittedKeywords = /[\&|<>=\(\)]/
-const startSubExpression = /\(/;
-const endSubExpression = /\)/;
 
 enum Keyword {
   AND = "&&",
@@ -48,7 +46,7 @@ const Comparitors = [
 ]
 
 export enum TokenType {
-  Keyword = "OP",
+  Keyword = "KEY",
   Number = "NUM",
   Word = "WORD",
 }
@@ -90,7 +88,7 @@ export class Parser {
   shouldLog: boolean = false;
   expr: string | undefined;
 
-  next(): void {
+  private next(): void {
     this.i = this.i + 1
     if (this.i >= this.tokens.length) {
       this.eof = true;
@@ -98,7 +96,7 @@ export class Parser {
     }
   }
 
-  back(): void {
+  private back(): void {
     this.i = this.i - 1
     if (this.i < 0) {
       this.i = 0
@@ -110,7 +108,7 @@ export class Parser {
    * The lexer splits the string/file into tokens, which can then be parsed based
    * the data
    */
-  lexicalAnalysis(expression: string): Token[] {
+  public lexicalAnalysis(expression: string): Token[] {
     let tokens: Token[] = []
     let inProgressToken: string = ""
     let typeInProgress: TokenType | undefined
@@ -122,10 +120,12 @@ export class Parser {
       let t: Token = {
         value: inProgressToken,
         type: TokenType.Word,
+        /*
         debug: {
-          start: start,
-          end: i,
+          s: start,
+          e: i,
         }
+        // */
       }
       // if word in keyword, use that instead
       if (keywordMapping[inProgressToken]) {
@@ -186,7 +186,7 @@ export class Parser {
     return tokens
   }
 
-  errorCheckLexer(tokens: Token[]) {
+  private errorCheckLexer(tokens: Token[]) {
     let lastToken: Token | undefined
 
     for (let i = 0; i < tokens.length; i++) {
@@ -200,111 +200,140 @@ export class Parser {
     }
   }
 
-  parseLiteral(): AstNode | undefined {
-    if (!this.eof && [TokenType.Number, TokenType.Word].includes(this.tokens[this.i]?.type)) {
-      let node: AstNode = {
-        token: this.tokens[this.i]
-      }
-      return node
+  private parseLiteral(): AstNode | undefined {
+    if (!(!this.eof && [TokenType.Number, TokenType.Word].includes(this.tokens[this.i]?.type))) {
+      if (this.shouldLog) console.log("parseLiteral", "you get nothing")
+      return
     }
+
+    let node: AstNode = {
+      token: this.tokens[this.i]
+    }
+    this.render(node)
+    return node
   }
 
-  parentheses(): AstNode | undefined {
+  private parentheses(): AstNode | undefined {
+    let sub_expr = this.parseLiteral()
+    if (sub_expr) {
+      return sub_expr
+    }
+
     let token = this.tokens[this.i]
     let node: AstNode
-    if (!this.eof && token?.value == '(') {
-      this.next()
-      node = {
-        token: token
-      }
-      node.left = this.and()
-      if (!this.eof && this.tokens[this.i]?.value == ')') {
-        node.right = {
-          token: this.tokens[this.i]
-        }
-      } else {
-        this.back()
-      }
-      return node
+    if (this.eof || token?.value !== '(') {
+      throw new Error("Getting neither a literal nor a '(' is unexpected")
+      return
     }
-    return this.parseLiteral()
-  }
 
-  comparitor(): AstNode | undefined {
-    let sub_expr = this.parentheses()
     this.next()
-    let token = this.tokens[this.i]
-    // we could handle division here for simplicity, it's just multiplication
-    // In a classic example of this, 'x / y * z' is treated as 'x * (1/y) * z'
-    // but it's worth clarifying the rules to ensure that that is correct, ie
-    // it's equally valid to read it as 'x / (y * z)'
-    if (!this.eof && [
-      Keyword.EQUALTO as string,
-      Keyword.GREAT_THAN_OR_EQUALTO as string,
-      Keyword.LESS_THAN_OR_EQUALTO as string,
-      Keyword.GREAT_THAN as string,
-      Keyword.LESS_THAN as string,
-      Keyword.NOT_EQUAL_TO as string,
-    ].includes(token?.value as string)) {
-      let node: AstNode = {
-        token: token as Token
-      }
-      node.left = sub_expr
-      this.next()
-      node.right = this.comparitor()
-      return node
-    } else {
+    node = {
+      token: token
+    }
+    this.render(node)
+    node.left = this.expression()
+    if (this.eof || this.tokens[this.i]?.value !== ')') {
       this.back()
     }
-    return sub_expr
-  }
 
-  or(): AstNode | undefined {
-    let sub_expr = this.comparitor()
-    this.next()
-    let token = this.tokens[this.i]
-    // we could handle subtraction here for simplicity, it's just addition
-    // I've seen examples where unary operator is handled seperately
-    // and it may be worth reworking 'x - y' to 'x + -y'
-    if (!this.eof && token?.value as string == Keyword.OR) {
-      let node: AstNode = {
-        token: token
-      }
-      node.left = sub_expr
-      this.next()
-      node.right = this.and()
-      return node
+    node.right = {
+      token: this.tokens[this.i]
     }
-    return sub_expr
+    this.render(node)
+    return node
   }
 
-  and(): AstNode | undefined {
-    let sub_expr = this.comparitor()
+  private comparitor(): AstNode | undefined {
+    let sub_expr = this.parentheses()
+    const keywords = [
+      Keyword.EQUALTO,
+      Keyword.GREAT_THAN_OR_EQUALTO,
+      Keyword.LESS_THAN_OR_EQUALTO,
+      Keyword.GREAT_THAN,
+      Keyword.LESS_THAN,
+      Keyword.NOT_EQUAL_TO,
+    ]
+    // return this.keyword(keywords, sub_expr)
     this.next()
     let token = this.tokens[this.i]
-    // we could handle subtraction here for simplicity, it's just addition
-    // I've seen examples where unary operator is handled seperately
-    // and it may be worth reworking 'x - y' to 'x + -y'
-    if (!this.eof &&
-      typeof token.value === "string" &&
-      [Keyword.AND as string, Keyword.OR as string].includes(token.value)
+    if (!(!this.eof && keywords.includes(token?.value as Keyword))) {
+      this.back()
+      return sub_expr
+    }
+
+    let node: AstNode = {
+      token: token as Token
+    }
+    node.left = sub_expr
+    this.next()
+    node.right = this.comparitor()
+    this.render(node)
+    return node
+  }
+
+  private keyword(keywords: Keyword[], sub_expr: AstNode | undefined, shouldBackStep: boolean = true): AstNode | undefined {
+    this.next()
+    let token = this.tokens[this.i]
+    if (this.eof ||
+      typeof token.value !== "string" ||
+      !keywords.includes(token.value as Keyword)
     ) {
-      let node: AstNode = {
-        token: token
-      }
-      node.left = sub_expr
-      this.next()
-      node.right = this.and()
-      return node
+      if (shouldBackStep) this.back()
+      this.render(sub_expr!)
+      return sub_expr
     }
+
+    let node: AstNode = {
+      token: token
+    }
+    node.left = sub_expr
+    this.next()
+    node.right = this.expression()
+    this.render(node)
+    return node
+  }
+
+  private and(): AstNode | undefined {
+    let sub_expr = this.comparitor()
+    return this.keyword([Keyword.AND, Keyword.OR], sub_expr)
+  }
+
+  private where(): AstNode | undefined {
+    let sub_expr = this.and()
+    return this.keyword([Keyword.WHERE], sub_expr, false)
+  }
+
+  private expression(): AstNode | undefined {
+    let sub_expr = this.where()
+    this.render(sub_expr!)
     return sub_expr
   }
 
   // Main input function
-  expression(tokens: Array<Token>): AstNode | undefined {
-    // Note how the rules are parsed 
+  public parse(tokens: Array<Token>): AstNode | undefined {
     this.tokens = tokens
-    return this.and()
+    return this.expression()
+  }
+
+  private render(ast: AstNode) {
+    if (!this.shouldLog) return
+
+    function renderLine(ast: AstNode, level: number): string {
+      let line = ""
+      for (let i = 0; i < level; i++) {
+        line += "\t"
+      }
+      line += `-> '${ast.token.value}'\n`
+      if (ast.left) {
+        line += renderLine(ast.left, level + 1)
+      }
+      if (ast.right) {
+        line += renderLine(ast.right, level + 1)
+      }
+      return line
+    }
+
+    console.log("expression", this.i, this.tokens[this.i], '\n', renderLine(ast, 0))
   }
 }
 
@@ -329,22 +358,16 @@ export class Evaluater {
     switch (ast.token.value as Keyword) {
       case Keyword.EQUALTO:
         return value == rightHandSide
-        break;
       case Keyword.GREAT_THAN_OR_EQUALTO:
         return value >= rightHandSide
-        break;
       case Keyword.LESS_THAN_OR_EQUALTO:
         return value <= rightHandSide
-        break;
       case Keyword.GREAT_THAN:
         return value > rightHandSide
-        break;
       case Keyword.LESS_THAN:
         return value < rightHandSide
-        break;
       case Keyword.NOT_EQUAL_TO:
         return value != rightHandSide
-        break;
     }
 
     return false
@@ -364,32 +387,44 @@ export class Evaluater {
   }
 
   evaluateAst(ast: AstNode, facts: Object): boolean {
-    let result: boolean | undefined
     const token = ast.token
-    if (token.type == TokenType.Keyword) {
-      if (typeof token.value === "string" && [
-        Keyword.AND as string,
-        Keyword.OR as string,
-      ].includes(token.value)) {
-        return this.evaluateBoolean(ast, facts)
-      } else if (Comparitors.includes(token.value as Keyword)) {
-        // comparisons
-        return  this.compareLeaves(ast, facts)
-      } else if (typeof token.value === "string" && ["(", ")"].includes(token.value)) {
-        return this.evaluateAst(ast.left!, facts)
-      } else {
-        throw new Error(`Unhandled operator: '${token.value}'. This is a problem is the expression evaluation.`)
-      }
+    if (token.type !== TokenType.Keyword) {
+      throw new Error(`Unhandled ast type of: '${ast.token.type}' for ${JSON.stringify(ast.token)}`)
     }
 
-    throw new Error(`Unhandled ast type of: '${ast.token.type}' for ${JSON.stringify(ast.token)}`)
+    if (typeof token.value === "string" && [
+      Keyword.AND as string,
+      Keyword.OR as string,
+    ].includes(token.value)) {
+      return this.evaluateBoolean(ast, facts)
+    } else if (Comparitors.includes(token.value as Keyword)) {
+      // comparisons
+      return  this.compareLeaves(ast, facts)
+    } else if (
+      typeof token.value === "string" &&
+      [
+        Keyword.PARENTHESES_OPEN as string,
+        Keyword.PARENTHESES_CLOSE as string
+      ].includes(token.value)) {
+      return this.evaluateAst(ast.left!, facts)
+    } else if (typeof token.value === "string" && ["(", ")"].includes(token.value)) {
+      return this.evaluateAst(ast.left!, facts)
+    } else if (token.value as Keyword == Keyword.WHERE) {
+      // do nothing
+      if (this.evaluateAst(ast.right!, facts)) {
+        return this.evaluateAst(ast.left!, facts)
+      }
+      return false
+    } else {
+      throw new Error(`Unhandled operator: '${token.value}'. This is a problem is the expression evaluation.`)
+    }
   }
 
   evaluate(expression: string, facts: Object): boolean {
     let astParser = new Parser()
     let res: Token[] = astParser.lexicalAnalysis(expression)
 
-    let ast = astParser.expression(res)
+    let ast = astParser.parse(res)
     return this.evaluateAst(ast!, facts);
   }
 }
