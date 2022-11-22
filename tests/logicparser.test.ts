@@ -314,6 +314,38 @@ describe("AST parsing", ()  => {
       token: {value: "where", type: logicParser.TokenType.Keyword},
     })
   })
+
+  test("a in [1 2]", () => {
+    let res: logicParser.Token[] = parser.lexicalAnalysis("a in [1 2]")
+    expect(res).toMatchObject([
+      {value: "a", type: logicParser.TokenType.Word},
+      {value: "in", type: logicParser.TokenType.Keyword},
+      {value: "[", type: logicParser.TokenType.Keyword},
+      {value: 1, type: logicParser.TokenType.Number},
+      {value: 2, type: logicParser.TokenType.Number},
+      {value: "]", type: logicParser.TokenType.Keyword},
+    ])
+
+    let ast = parser.parse(res)
+    expect(ast).toMatchObject({
+      token: {value: "in", type: logicParser.TokenType.Keyword},
+      left: {
+        token: {value: "a", type: logicParser.TokenType.Word},
+      },
+      right: {
+        token: {value: "[", type: logicParser.TokenType.Keyword},
+        left: {
+          token: {value: 1, type: logicParser.TokenType.Number},
+          left: {
+            token: {value: 2, type: logicParser.TokenType.Number},
+          },
+        },
+        right: {
+          token: {value: "]", type: logicParser.TokenType.Keyword},
+        },
+      },
+    })
+  })
 })
 
 describe("Evaluation", () => {
@@ -431,6 +463,55 @@ describe("Evaluation", () => {
         {"a": 2, "b": 3, "c": 3},
       ],
       value: true
+    },
+    {
+      expr: "(a == 1 where c == 3) where b == 2",
+      facts: [
+        {"a": 1, "b": 2, "c": 3},
+        {"a": 2, "b": 2, "c": 3},
+        {"a": 3, "b": 2, "c": 3},
+      ],
+      value: true
+    },
+    {
+      expr: "(a == 1) where (b == 2 where c == 3)",
+      facts: [
+        {"a": 1, "b": 2, "c": 2},
+        {"a": 2, "b": 2, "c": 3},
+        {"a": 1, "b": 2, "c": 3},
+      ],
+      value: true
+    },
+    {
+      expr: "(a == 1) where (b == 2 where c == 3)",
+      facts: [
+        {"a": 1, "b": 3, "c": 3},
+        {"a": 1, "b": 2, "c": 3},
+      ],
+      value: true
+    },
+    {
+      expr: "(a == 1) where (b == 2 where c == 3)",
+      facts: [
+        {"a": 1, "b": 3, "c": 3},
+        {"a": 1, "b": 2, "c": 2},
+      ],
+      value: false
+    },
+    {
+      expr: "a in [1 2]",
+      facts: {"a": 1, "b": 3, "c": 3},
+      value: true
+    },
+    {
+      expr: "a in [1 2]",
+      facts: {"a": 2, "b": 3, "c": 3},
+      value: true
+    },
+    {
+      expr: "a in [1 2]",
+      facts: {"a": 3, "b": 3, "c": 3},
+      value: false
     },
   ]
 

@@ -161,10 +161,7 @@ describe("parser", ()  => {
     ])
 
     let astParser = new parser.Parser()
-    astParser.shouldLog = true;
     let ast = astParser.expression(res)
-    console.log("lexer results", res)
-    console.log("final ast", JSON.stringify(ast, null, 2))
     expect(ast).toMatchObject({
       value: "*",
       type: parser.TokenType.Operator,
@@ -194,10 +191,7 @@ describe("parser", ()  => {
   test("Create array", () => {
     let res: parser.ExprNode[] = parser.lexicalAnalysis("(1 + (2 + 3)) * 4")
     let astParser = new parser.Parser()
-    astParser.shouldLog = true;
     let ast = astParser.expression(res)
-    console.log("lexer results", res)
-    console.log("final ast", JSON.stringify(ast, null, 2))
     expect(ast).toMatchObject({
       value: "*",
       type: parser.TokenType.Operator,
