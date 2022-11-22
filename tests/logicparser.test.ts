@@ -189,7 +189,6 @@ describe("AST parsing", ()  => {
       {value: 2, type: logicParser.TokenType.Number},
     ])
 
-    parser.shouldLog = true
     let ast = parser.parse(res)
     expect(ast).toMatchObject({
       token: {value: "||", type: logicParser.TokenType.Keyword},
@@ -238,7 +237,6 @@ describe("AST parsing", ()  => {
       {value: 3, type: logicParser.TokenType.Number},
     ])
 
-    // parser.shouldLog = true
     let ast = parser.parse(res)
     expect(ast).toMatchObject({
       token: {value: "&&", type: logicParser.TokenType.Keyword},
@@ -389,18 +387,50 @@ describe("Evaluation", () => {
     },
     {
       expr: "a == 1 where b == 2",
-//      facts: [
-facts:        {"a": 1, "b": 2, "c": 3},
-//        {"a": 1, "b": 3, "c": 3},
-//      ],
+      facts: [
+        {"a": 1, "b": 3, "c": 3},
+      ],
+      value: false
+    },
+    {
+      expr: "a == 1 where b == 2",
+      facts: [
+        {"a": 1, "b": 2, "c": 3},
+        {"a": 1, "b": 3, "c": 3},
+      ],
       value: true
     },
     {
       expr: "a == 1 where b == 2",
       facts: [
+        {"a": 2, "b": 2, "c": 3},
         {"a": 1, "b": 3, "c": 3},
       ],
       value: false
+    },
+    {
+      expr: "a == 1 where b == 2",
+      facts: [
+        {"a": 2, "b": 2, "c": 3},
+        {"a": 2, "b": 3, "c": 3},
+      ],
+      value: false
+    },
+    {
+      expr: "(a == 1 && c == 3) where b == 2",
+      facts: [
+        {"a": 2, "b": 2, "c": 3},
+        {"a": 2, "b": 3, "c": 3},
+      ],
+      value: false
+    },
+    {
+      expr: "(a == 1 && c == 3) where b == 2",
+      facts: [
+        {"a": 1, "b": 2, "c": 3},
+        {"a": 2, "b": 3, "c": 3},
+      ],
+      value: true
     },
   ]
 

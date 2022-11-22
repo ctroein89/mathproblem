@@ -223,7 +223,6 @@ export class Parser {
     let node: AstNode
     if (this.eof || token?.value !== '(') {
       throw new Error("Getting neither a literal nor a '(' is unexpected")
-      return
     }
 
     this.next()
@@ -386,7 +385,7 @@ export class Evaluater {
     throw new Error(`Unhandled boolean operator: '${token.value}'`)
   }
 
-  evaluateAst(ast: AstNode, facts: Object): boolean {
+  evaluateAst(ast: AstNode, facts: Object | Object[]): boolean {
     const token = ast.token
     if (token.type !== TokenType.Keyword) {
       throw new Error(`Unhandled ast type of: '${ast.token.type}' for ${JSON.stringify(ast.token)}`)
@@ -398,7 +397,6 @@ export class Evaluater {
     ].includes(token.value)) {
       return this.evaluateBoolean(ast, facts)
     } else if (Comparitors.includes(token.value as Keyword)) {
-      // comparisons
       return  this.compareLeaves(ast, facts)
     } else if (
       typeof token.value === "string" &&
@@ -410,9 +408,21 @@ export class Evaluater {
     } else if (typeof token.value === "string" && ["(", ")"].includes(token.value)) {
       return this.evaluateAst(ast.left!, facts)
     } else if (token.value as Keyword == Keyword.WHERE) {
-      // do nothing
-      if (this.evaluateAst(ast.right!, facts)) {
-        return this.evaluateAst(ast.left!, facts)
+      if (Array.isArray(facts)) {
+
+        let any = false
+        facts.forEach((f) => {
+          let thisWas
+          if (this.evaluateAst(ast.right!, f)) {
+            thisWas = this.evaluateAst(ast.left!, f)
+          }
+          any = any || !!thisWas
+        })
+        return any
+      } else {
+        if (this.evaluateAst(ast.right!, facts)) {
+          return this.evaluateAst(ast.left!, facts)
+        }
       }
       return false
     } else {
