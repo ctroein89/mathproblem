@@ -1,5 +1,29 @@
 import * as logicParser from '../src/logic.parser'
 
+describe("Errors", () => {
+  let parser: logicParser.Parser
+
+  beforeEach(() => {
+    parser = new logicParser.Parser()
+  })
+
+  test("illegal combination", () => {
+    expect(
+      () => parser.lexicalAnalysis("a && 1 2")
+    ).toThrow(
+      `ERROR: '1 2' forms an illegal combination outside of a list\nCode:\n\ta && 1 2`
+    )
+  })
+
+  test("operator in list", () => {
+    expect(
+      () => parser.lexicalAnalysis("[&& 1 2]")
+    ).toThrow(
+      `ERROR: Values in a list must be words or numbers\nCode:\n\t[&& 1 2]`
+    )
+  })
+})
+
 describe("Lexing", () => {
   let parser: logicParser.Parser
 

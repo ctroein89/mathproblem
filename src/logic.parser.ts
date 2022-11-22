@@ -113,11 +113,17 @@ export class Parser {
     let inProgressToken: string = ""
     let typeInProgress: TokenType | undefined
     this.expr = expression
+    let start = 0
+    let i = 0
 
     function createToken() {
       let t: Token = {
         value: inProgressToken,
         type: TokenType.Word,
+        debug: {
+          start: start,
+          end: i,
+        },
       }
       // if word in keyword, use that instead
       if (keywordMapping[inProgressToken]) {
@@ -129,11 +135,16 @@ export class Parser {
         t = {
           value: num,
           type: TokenType.Number,
+          debug: {
+            start: start,
+            end: i,
+          },
         }
       }
       if (!!t) tokens.push(t)
       inProgressToken = ""
       typeInProgress = undefined
+      start = i + 1
     }
 
     function checkCompleteToken(c: string) {
@@ -168,12 +179,26 @@ export class Parser {
       if (validChar) {
         inProgressToken += c
       }
+      i++
     }
     createToken()
 
     this.errorCheckLexer(tokens)
 
     return tokens
+  }
+
+  private logError(token: Token, message: string) {
+    let earlierStart = token.debug?.start - 20
+    if (earlierStart < 0) {
+      earlierStart = 0
+    }
+    let laterEnd = token.debug?.end + 20
+    let len = this.expr?.length ? this.expr?.length : 0
+    if (laterEnd > len) {
+      laterEnd = len
+    }
+    throw new Error(`ERROR: ${message}\nCode:\n\t${this.expr?.substring(earlierStart, laterEnd)}`)
   }
 
   private errorCheckLexer(tokens: Token[]) {
@@ -187,12 +212,12 @@ export class Parser {
       if (lastToken && (
         lastToken?.type != TokenType.Keyword && token.type != TokenType.Keyword
       ) && !inList) {
-        throw new Error(`${lastToken.value} ${token.value} forms an illegal combination outside of a list`)
+        this.logError(token, `'${lastToken.value} ${token.value}' forms an illegal combination outside of a list`)
       }
       if (inList &&
         ![Keyword.BRACKET_OPEN, Keyword.BRACKET_CLOSE].includes(token.value as Keyword) &&
         ![TokenType.Word, TokenType.Number].includes(token.type)) {
-        throw new Error(`Values in a list must be words or numbers`)
+        this.logError(token, `Values in a list must be words or numbers`)
       }
       lastToken = token
     }
